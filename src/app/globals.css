@@ -25,3 +25,10 @@
     @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
   }
 }
+
+@media print {
+  nav, header, aside, .no-print { display: none !important; }
+  body { background: white; }
+  .card { box-shadow: none; border: 1px solid #e5e7eb; }
+  .print-break { page-break-before: always; }
+}
