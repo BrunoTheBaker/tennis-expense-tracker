@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { CsvUpload } from '@/components/transactions/CsvUpload'
 import { ReviewTable } from '@/components/transactions/ReviewTable'
 import { ProgressBar } from '@/components/transactions/ProgressBar'
+import { ExportButton } from '@/components/transactions/ExportButton'
 import type { Transaction } from '@/lib/financialData'
 
 export default function TransactionsPage() {
@@ -32,12 +33,15 @@ export default function TransactionsPage() {
             {transactions.length} transactions loaded
           </p>
         </div>
-        <button
-          onClick={() => setTransactions([])}
-          className="btn-secondary text-sm"
-        >
-          Upload new file
-        </button>
+        <div className="flex gap-3">
+          <ExportButton transactions={transactions} />
+          <button
+            onClick={() => setTransactions([])}
+            className="btn-secondary text-sm"
+          >
+            Upload new file
+          </button>
+        </div>
       </div>
       <ProgressBar
         confirmed={transactions.filter(t => t.status === 'confirmed').length}
