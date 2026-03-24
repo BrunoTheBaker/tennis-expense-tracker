@@ -2,39 +2,53 @@
 
 import {
   CurrencyDollarIcon,
-  ArrowTrendingUpIcon as TrendingUpIcon,
-  ArrowTrendingDownIcon as TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline'
+import { JAN_2026, getTotalIncome, getTotalExpenses, getNetPosition } from '@/lib/financialData'
 
-const stats = [
+const totalIncome   = getTotalIncome(JAN_2026)
+const totalExpenses = getTotalExpenses(JAN_2026)
+const netPosition   = getNetPosition(JAN_2026)
+const drinksProfit  = JAN_2026.drinksPOS.profit
+
+type StatCard = {
+  name: string
+  value: string
+  change: string
+  changeType: 'increase' | 'decrease' | 'neutral'
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const stats: StatCard[] = [
   {
-    name: 'Total Expenses',
-    value: '$24,540',
-    change: '+12%',
-    changeType: 'increase' as const,
+    name: 'Total Income (YTD)',
+    value: `$${totalIncome.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    change: JAN_2026.label,
+    changeType: 'neutral',
+    icon: ArrowTrendingUpIcon,
+  },
+  {
+    name: 'Total Expenses (YTD)',
+    value: `$${totalExpenses.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    change: JAN_2026.label,
+    changeType: 'neutral',
     icon: CurrencyDollarIcon,
   },
   {
-    name: 'Monthly Budget',
-    value: '$30,000',
-    change: '82% used',
-    changeType: 'neutral' as const,
+    name: 'Net Position',
+    value: `$${netPosition.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    change: 'Surplus',
+    changeType: 'increase',
     icon: ChartBarIcon,
   },
   {
-    name: 'This Month',
-    value: '$8,420',
-    change: '-5%',
-    changeType: 'decrease' as const,
-    icon: TrendingDownIcon,
-  },
-  {
-    name: 'Pending Approvals',
-    value: '7',
-    change: '+2 new',
-    changeType: 'increase' as const,
-    icon: TrendingUpIcon,
+    name: 'Drinks Profit',
+    value: `$${drinksProfit.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    change: `${JAN_2026.drinksPOS.grossProfitPct}% GP`,
+    changeType: 'increase',
+    icon: ArrowTrendingDownIcon,
   },
 ]
 
@@ -48,19 +62,15 @@ export function StatsCards() {
               <stat.icon className="h-6 w-6 text-tennis-green-600" />
             </div>
             <div className="ml-3 w-0 flex-1">
-              <dt className="text-sm font-medium text-gray-500 truncate">
-                {stat.name}
-              </dt>
+              <dt className="text-sm font-medium text-gray-500 truncate">{stat.name}</dt>
               <dd className="flex items-baseline">
-                <div className="text-2xl font-semibold text-gray-900">
-                  {stat.value}
-                </div>
+                <div className="text-2xl font-semibold text-gray-900">{stat.value}</div>
                 <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                  stat.changeType === 'increase' 
-                    ? 'text-green-600' 
+                  stat.changeType === 'increase'
+                    ? 'text-green-600'
                     : stat.changeType === 'decrease'
                     ? 'text-red-600'
-                    : 'text-gray-600'
+                    : 'text-gray-500'
                 }`}>
                   {stat.change}
                 </div>

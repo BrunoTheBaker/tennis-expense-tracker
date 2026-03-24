@@ -10,11 +10,13 @@ import {
   FileText,
   Users,
   Settings,
+  ArrowLeftRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
   { name: 'Add Expense', href: '/expenses/new', icon: Plus },
   { name: 'Expenses', href: '/expenses', icon: BarChart3 },
   { name: 'Budget Tracking', href: '/budget', icon: BarChart3 },

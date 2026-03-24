@@ -1,72 +1,55 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts'
+import { JAN_2026 } from '@/lib/financialData'
 
-const budgetData = [
-  { category: 'Maintenance', spent: 8500, budget: 10000 },
-  { category: 'Equipment', spent: 4200, budget: 5000 },
-  { category: 'Utilities', spent: 3800, budget: 4000 },
-  { category: 'Events', spent: 6200, budget: 8000 },
-  { category: 'Staff', spent: 12000, budget: 15000 },
-  { category: 'Insurance', spent: 2400, budget: 3000 },
-]
+const chartData = JAN_2026.pnl
+  .filter(c => c.income > 0 || c.expenses > 0)
+  .map(c => ({
+    category: c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name,
+    income: c.income,
+    expenses: c.expenses,
+  }))
 
 export function BudgetOverview() {
+  const totalIncome   = JAN_2026.pnl.reduce((s, c) => s + c.income, 0)
+  const totalExpenses = JAN_2026.pnl.reduce((s, c) => s + c.expenses, 0)
+
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900">Budget vs Actual</h3>
-        <div className="text-sm text-gray-500">
-          Current Month
-        </div>
+        <h3 className="text-lg font-medium text-gray-900">Income vs Expenses by Category</h3>
+        <div className="text-sm text-gray-500">{JAN_2026.label}</div>
       </div>
-      
+
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={budgetData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-            barCategoryGap="20%"
-          >
+          <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 80 }} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="category" 
-              className="text-xs text-gray-600"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-            />
-            <YAxis 
-              className="text-xs text-gray-600"
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-            />
-            <Bar dataKey="budget" fill="#e5e7eb" name="Budget" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="spent" name="Spent" radius={[2, 2, 0, 0]}>
-              {budgetData.map((entry, index) => {
-                const percentage = (entry.spent / entry.budget) * 100;
-                let color = '#16a34a'; // Green
-                if (percentage > 90) color = '#dc2626'; // Red
-                else if (percentage > 75) color = '#f59e0b'; // Yellow
-                
-                return <Cell key={`cell-${index}`} fill={color} />
-              })}
+            <XAxis dataKey="category" angle={-45} textAnchor="end" height={90} className="text-xs" />
+            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+            <Tooltip formatter={(v: number) => `$${v.toLocaleString('en-AU', { minimumFractionDigits: 2 })}`} />
+            <Bar dataKey="income"   name="Income"   fill="#16a34a" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="expenses" name="Expenses" radius={[2, 2, 0, 0]}>
+              {chartData.map((entry, i) => (
+                <Cell key={i} fill={entry.expenses > entry.income ? '#dc2626' : '#f59e0b'} />
+              ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-      
-      {/* Budget summary */}
+
       <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
         <div>
-          <div className="text-sm text-gray-500">Total Budget</div>
-          <div className="text-lg font-semibold text-gray-900">
-            ${budgetData.reduce((sum, item) => sum + item.budget, 0).toLocaleString()}
+          <div className="text-sm text-gray-500">Total Income</div>
+          <div className="text-lg font-semibold text-green-600">
+            ${totalIncome.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
           </div>
         </div>
         <div>
-          <div className="text-sm text-gray-500">Total Spent</div>
-          <div className="text-lg font-semibold text-gray-900">
-            ${budgetData.reduce((sum, item) => sum + item.spent, 0).toLocaleString()}
+          <div className="text-sm text-gray-500">Total Expenses</div>
+          <div className="text-lg font-semibold text-red-600">
+            ${totalExpenses.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>

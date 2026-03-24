@@ -2,83 +2,21 @@
 
 import { useState } from 'react'
 import { ExclamationTriangleIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { JAN_2026 } from '@/lib/financialData'
 
-const budgetData = [
-  {
-    id: 1,
-    category: 'Court Maintenance',
-    budgetAnnual: 45000,
-    budgetMonthly: 3750,
-    spentYTD: 28500,
-    spentThisMonth: 2850,
-    lastUpdated: '2024-01-15',
-    projects: [
-      { name: 'Net Replacements', allocated: 5000, spent: 2400 },
-      { name: 'Surface Repairs', allocated: 15000, spent: 12800 },
-      { name: 'Lighting Updates', allocated: 10000, spent: 8200 },
-      { name: 'Fencing Repairs', allocated: 8000, spent: 3100 },
-    ]
-  },
-  {
-    id: 2,
-    category: 'Equipment & Supplies',
-    budgetAnnual: 25000,
-    budgetMonthly: 2083,
-    spentYTD: 18200,
-    spentThisMonth: 1680,
-    lastUpdated: '2024-01-14',
-    projects: [
-      { name: 'Coaching Equipment', allocated: 8000, spent: 6800 },
-      { name: 'Balls & Accessories', allocated: 6000, spent: 4200 },
-      { name: 'First Aid Supplies', allocated: 2000, spent: 1200 },
-      { name: 'Office Supplies', allocated: 3000, spent: 2100 },
-    ]
-  },
-  {
-    id: 3,
-    category: 'Utilities',
-    budgetAnnual: 18000,
-    budgetMonthly: 1500,
-    spentYTD: 14200,
-    spentThisMonth: 1420,
-    lastUpdated: '2024-01-13',
-    projects: [
-      { name: 'Electricity', allocated: 12000, spent: 9500 },
-      { name: 'Water & Sewer', allocated: 4000, spent: 3200 },
-      { name: 'Internet/Phone', allocated: 2000, spent: 1500 },
-    ]
-  },
-  {
-    id: 4,
-    category: 'Events & Tournaments',
-    budgetAnnual: 35000,
-    budgetMonthly: 2917,
-    spentYTD: 21500,
-    spentThisMonth: 5200,
-    lastUpdated: '2024-01-12',
-    projects: [
-      { name: 'Prize Money', allocated: 15000, spent: 12500 },
-      { name: 'Event Supplies', allocated: 8000, spent: 4200 },
-      { name: 'Catering', allocated: 7000, spent: 3100 },
-      { name: 'Marketing', allocated: 5000, spent: 1700 },
-    ]
-  },
-  {
-    id: 5,
-    category: 'Staff & Professional Services',
-    budgetAnnual: 65000,
-    budgetMonthly: 5417,
-    spentYTD: 48200,
-    spentThisMonth: 5100,
-    lastUpdated: '2024-01-11',
-    projects: [
-      { name: 'Coaching Staff', allocated: 35000, spent: 28500 },
-      { name: 'Maintenance Staff', allocated: 15000, spent: 11200 },
-      { name: 'Accounting Services', allocated: 8000, spent: 5200 },
-      { name: 'Legal & Insurance', allocated: 7000, spent: 3300 },
-    ]
-  },
-]
+const budgetData = JAN_2026.pnl
+  .filter(c => c.expenses > 0)
+  .map((c, i) => ({
+    id: i + 1,
+    category: c.name,
+    budgetAnnual: Math.round(c.expenses * 1.1), // 10% buffer as indicative annual budget
+    spentYTD: c.expenses,
+    budgetMonthly: Math.round((c.expenses * 1.1) / 11), // 11 months into FY
+    spentThisMonth: 0, // not available at category level without monthly breakdown
+    lastUpdated: '2026-01-31',
+    projects: [] as { name: string; allocated: number; spent: number }[],
+  }))
+
 
 export function BudgetTracker() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
