@@ -1,7 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts'
-import { JAN_2026 } from '@/lib/financialData'
+import { JAN_2026, getTotalIncome, getTotalExpenses } from '@/lib/financialData'
 
 const chartData = JAN_2026.pnl
   .filter(c => c.income > 0 || c.expenses > 0)
@@ -12,8 +12,8 @@ const chartData = JAN_2026.pnl
   }))
 
 export function BudgetOverview() {
-  const totalIncome   = JAN_2026.pnl.reduce((s, c) => s + c.income, 0)
-  const totalExpenses = JAN_2026.pnl.reduce((s, c) => s + c.expenses, 0)
+  const totalIncome   = getTotalIncome(JAN_2026)
+  const totalExpenses = getTotalExpenses(JAN_2026)
 
   return (
     <div className="card">
