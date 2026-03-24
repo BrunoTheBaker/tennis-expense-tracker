@@ -1,3 +1,4 @@
+import 'server-only'
 import Anthropic from '@anthropic-ai/sdk'
 import { accounts } from '@/lib/accounts'
 
@@ -46,7 +47,11 @@ Confidence rules:
     ],
   })
 
-  const text = (message.content[0] as { type: string; text: string }).text.trim()
+  const block = message.content[0]
+  if (!block || block.type !== 'text') {
+    throw new Error('Unexpected response type from AI')
+  }
+  const text = block.text.trim()
   const parsed = JSON.parse(text) as CategoriseResult
   return parsed
 }

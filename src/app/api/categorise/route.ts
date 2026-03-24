@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       amount: number
     }
 
-    if (!description || amount === undefined) {
+    if (!description || amount == null || typeof amount !== 'number') {
       return NextResponse.json({ error: 'description and amount required' }, { status: 400 })
     }
 
