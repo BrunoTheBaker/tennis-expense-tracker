@@ -31,7 +31,7 @@ export function Sidebar() {
       <div className="flex items-center h-16 px-6 border-b border-gray-200">
         <Trophy className="h-8 w-8 text-tennis-green-600" />
         <span className="ml-2 text-lg font-semibold text-gray-900">
-          Tennis Club
+          Safety Bay TC
         </span>
       </div>
       

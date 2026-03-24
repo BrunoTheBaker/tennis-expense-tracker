@@ -14,7 +14,7 @@ const tabs = [
 export function Settings() {
   const [activeTab, setActiveTab] = useState('general')
   const [settings, setSettings] = useState({
-    clubName: 'Tennis Club Perth',
+    clubName: 'Safety Bay Tennis Club',
     currency: 'AUD',
     fiscalYear: '01-01',
     approvalLimit: 1000,

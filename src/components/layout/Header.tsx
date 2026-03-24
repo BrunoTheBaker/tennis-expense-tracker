@@ -20,7 +20,7 @@ export function Header() {
             <UserCircleIcon className="h-8 w-8 text-gray-400" />
             <div className="text-sm">
               <div className="font-medium text-gray-900">Club Administrator</div>
-              <div className="text-gray-500">admin@tennisclub.com</div>
+              <div className="text-gray-500">Safety Bay Tennis Club</div>
             </div>
           </div>
         </div>
