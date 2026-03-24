@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { 
-  Home, 
-  Plus, 
-  BarChart3, 
-  FileText, 
+import Image from 'next/image'
+import {
+  Home,
+  Plus,
+  BarChart3,
+  FileText,
   Users,
   Settings,
-  Trophy
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -29,8 +29,8 @@ export function Sidebar() {
   return (
     <div className="w-64 bg-white shadow-sm border-r border-gray-200">
       <div className="flex items-center h-16 px-6 border-b border-gray-200">
-        <Trophy className="h-8 w-8 text-tennis-green-600" />
-        <span className="ml-2 text-lg font-semibold text-gray-900">
+        <Image src="/sbtc_logo.png" alt="Safety Bay Tennis Club" width={40} height={40} className="object-contain" />
+        <span className="ml-2 text-base font-semibold text-gray-900">
           Safety Bay TC
         </span>
       </div>
