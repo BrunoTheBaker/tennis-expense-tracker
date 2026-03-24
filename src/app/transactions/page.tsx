@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { CsvUpload } from '@/components/transactions/CsvUpload'
+import { ReviewTable } from '@/components/transactions/ReviewTable'
+import { ProgressBar } from '@/components/transactions/ProgressBar'
 import type { Transaction } from '@/lib/financialData'
 
 export default function TransactionsPage() {
@@ -37,8 +39,12 @@ export default function TransactionsPage() {
           Upload new file
         </button>
       </div>
-      {/* ReviewTable added in Task B4 */}
-      <p className="text-gray-500">Review table coming in next task…</p>
+      <ProgressBar
+        confirmed={transactions.filter(t => t.status === 'confirmed').length}
+        skipped={transactions.filter(t => t.status === 'skipped').length}
+        total={transactions.length}
+      />
+      <ReviewTable transactions={transactions} onChange={setTransactions} />
     </div>
   )
 }
