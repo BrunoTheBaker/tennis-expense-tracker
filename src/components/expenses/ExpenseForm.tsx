@@ -2,18 +2,7 @@
 
 import { useState } from 'react'
 import { CalendarIcon, PaperClipIcon } from '@heroicons/react/24/outline'
-
-const categories = [
-  'Maintenance',
-  'Equipment', 
-  'Utilities',
-  'Events',
-  'Staff',
-  'Insurance',
-  'Marketing',
-  'Professional Services',
-  'Other'
-]
+import { accounts, accountLabel } from '@/lib/accounts'
 
 export function ExpenseForm() {
   const [formData, setFormData] = useState({
@@ -85,10 +74,10 @@ export function ExpenseForm() {
               onChange={handleInputChange}
               className="input-field"
             >
-              <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
+              <option value="">Select a cost centre</option>
+              {accounts.map((account) => (
+                <option key={account.code} value={account.code}>
+                  {accountLabel(account)}
                 </option>
               ))}
             </select>
