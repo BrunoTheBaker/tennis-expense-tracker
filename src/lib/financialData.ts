@@ -23,7 +23,7 @@ export interface BalanceSheetLine {
   name: string
   code?: string
   amount: number
-  section: 'current_assets' | 'non_current_assets' | 'equity'
+  section: 'current_assets' | 'non_current_assets' | 'current_liabilities' | 'non_current_liabilities' | 'equity'
 }
 
 export interface DrinksPOSData {
@@ -56,8 +56,26 @@ export function getTotalExpenses(period: FinancialPeriod): number {
   return period.pnl.reduce((sum, c) => sum + c.expenses, 0)
 }
 
+/**
+ * Returns cost of goods sold (drinks only in Phase 1).
+ * COGS is tracked in drinksPOS, not in the pnl categories,
+ * because Reckon reports it in a separate section between
+ * Income and Operating Expenses.
+ */
+export function getTotalCOGS(period: FinancialPeriod): number {
+  return period.drinksPOS.cogs
+}
+
+/**
+ * Net Position = Income − Operating Expenses − COGS
+ * Mirrors the Reckon P&L structure:
+ *   Income              $105,528.77
+ *   Less COGS             $4,951.11
+ *   Less Expenses        $63,424.13
+ *   Net Position         $37,153.53
+ */
 export function getNetPosition(period: FinancialPeriod): number {
-  return getTotalIncome(period) - getTotalExpenses(period) - period.drinksPOS.cogs
+  return getTotalIncome(period) - getTotalExpenses(period) - getTotalCOGS(period)
 }
 
 // ─── Jan 2026 Actuals (YTD: 1 Mar 2025 – 31 Jan 2026) ───────────────────────
