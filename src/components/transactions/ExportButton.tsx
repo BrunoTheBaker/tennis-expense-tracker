@@ -19,7 +19,9 @@ export function ExportButton({ transactions }: Props) {
     const a    = document.createElement('a')
     a.href     = url
     a.download = `reckon-categorised-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 

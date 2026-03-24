@@ -18,7 +18,7 @@ export function getMerchantKey(description: string): string {
  * Date format: DD/MM/YYYY
  */
 export function parseReckonCsv(csvText: string): Transaction[] {
-  const lines = csvText.split(/\r?\n/)
+  const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/)
   const transactions: Transaction[] = []
 
   for (const line of lines) {
