@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@headlessui/react": "^1.7.0",
     "@heroicons/react": "^2.0.18",
     "@types/node": "^20.0.0",
