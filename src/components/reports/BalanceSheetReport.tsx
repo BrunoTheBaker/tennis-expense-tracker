@@ -1,32 +1,22 @@
 import Image from 'next/image'
-import { JAN_2026 } from '@/lib/financialData'
+import { JAN_2026, type BalanceSheetLine } from '@/lib/financialData'
 
-export function BalanceSheetReport() {
-  const period = JAN_2026
-  const fmt = (n: number) =>
-    n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n: number) =>
+  n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-  const currentAssets    = period.balanceSheet.filter(l => l.section === 'current_assets')
-  const nonCurrentAssets = period.balanceSheet.filter(l => l.section === 'non_current_assets')
-  const equity           = period.balanceSheet.filter(l => l.section === 'equity')
-
-  const totalCurrent    = currentAssets.reduce((s, l) => s + l.amount, 0)
-  const totalNonCurrent = nonCurrentAssets.reduce((s, l) => s + l.amount, 0)
-  const totalAssets     = totalCurrent + totalNonCurrent
-  const totalEquity     = equity.reduce((s, l) => s + l.amount, 0)
-
-  const Section = ({ title, rows, total, label }: {
-    title: string
-    rows: typeof currentAssets
-    total: number
-    label: string
-  }) => (
+function Section({ title, rows, total, label }: {
+  title: string
+  rows: BalanceSheetLine[]
+  total: number
+  label: string
+}) {
+  return (
     <div className="mb-5">
       <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{title}</div>
       <table className="w-full">
         <tbody>
-          {rows.map((l, i) => (
-            <tr key={i} className="border-b border-gray-100">
+          {rows.map(l => (
+            <tr key={l.name} className="border-b border-gray-100">
               <td className="py-1 text-gray-700 pl-4">{l.name}</td>
               <td className="py-1 text-right font-mono text-gray-900">${fmt(l.amount)}</td>
             </tr>
@@ -39,6 +29,19 @@ export function BalanceSheetReport() {
       </table>
     </div>
   )
+}
+
+export function BalanceSheetReport() {
+  const period = JAN_2026
+
+  const currentAssets    = period.balanceSheet.filter(l => l.section === 'current_assets')
+  const nonCurrentAssets = period.balanceSheet.filter(l => l.section === 'non_current_assets')
+  const equity           = period.balanceSheet.filter(l => l.section === 'equity')
+
+  const totalCurrent    = currentAssets.reduce((s, l) => s + l.amount, 0)
+  const totalNonCurrent = nonCurrentAssets.reduce((s, l) => s + l.amount, 0)
+  const totalAssets     = totalCurrent + totalNonCurrent
+  const totalEquity     = equity.reduce((s, l) => s + l.amount, 0)
 
   return (
     <div className="bg-white p-8 max-w-2xl mx-auto font-sans text-sm">
