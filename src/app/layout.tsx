@@ -1,30 +1,34 @@
 import type { Metadata } from 'next'
+import { DM_Sans, DM_Mono } from 'next/font/google'
+import TopNav from '@/components/layout/TopNav'
 import './globals.css'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Header } from '@/components/layout/Header'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
+const dmMono = DM_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-mono',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: 'Safety Bay Tennis Club - Finance',
+  title: 'SBTC Treasury',
   description: 'Financial management for Safety Bay Tennis Club',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-50">
-        <div className="flex h-screen">
-          <Sidebar />
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-              {children}
-            </main>
-          </div>
-        </div>
+    <html lang="en" className={`${dmSans.variable} ${dmMono.variable}`}>
+      <body>
+        <TopNav />
+        <main className="max-w-[1240px] mx-auto px-7 py-7">
+          {children}
+        </main>
       </body>
     </html>
   )
