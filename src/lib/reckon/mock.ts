@@ -34,7 +34,7 @@ export const MOCK_ACCOUNTS: Account[] = [
   { id: 'acc-6-1201', code: '6-1201', name: 'Cleaning Honorarium',             type: 'Expense',     isActive: true },
   { id: 'acc-6-1210', code: '6-1210', name: 'Rates, ESL, Waste',               type: 'Expense',     isActive: true },
   { id: 'acc-6-1211', code: '6-1211', name: 'Internet Connection',             type: 'Expense',     isActive: true },
-  { id: 'acc-6-1212', code: '6-1212', name: 'Electricity',                     type: 'Expense',     isActive: true },
+  { id: 'acc-6-1203', code: '6-1203', name: 'Clubhouse - Electricity',          type: 'Expense',     isActive: true },
   // Expenses — Courts
   { id: 'acc-6-1301', code: '6-1301', name: 'Court Maintenance',               type: 'Expense',     isActive: true },
   // Expenses — Grounds
@@ -195,7 +195,7 @@ export const MOCK_TRANSACTIONS: ReckonTransaction[] = [
     description: 'SYNERGY BPAY 555123 ELECTRICITY',
     totalAmount: -312.80,
     lines: [
-      line('l-j14a', 'acc-6-1212', '6-1212', 'Electricity',           312.80, 0),
+      line('l-j14a', 'acc-6-1203', '6-1203', 'Clubhouse - Electricity', 312.80, 0),
     ],
   },
   {
