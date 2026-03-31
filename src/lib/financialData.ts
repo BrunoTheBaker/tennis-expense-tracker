@@ -10,6 +10,7 @@ export interface Transaction {
   accountCode?: string  // assigned cost centre code e.g. '6-1402'
   confidence?: 'high' | 'medium' | 'low'
   status: 'pending' | 'confirmed' | 'skipped'
+  source?: 'reckon' | 'square' | 'stripe'
 }
 
 export interface PnLCategory {
