@@ -37,7 +37,7 @@ KNOWN MERCHANT MAPPINGS (use these first before guessing):
 - Elders Insurance → 6-7003 Insurance
 - Pentanet → 6-1211 Internet Connection
 - Reckon Ltd → 6-7099 Computer Software
-- Synergy BPAY → 6-1212 Electricity
+- Synergy BPAY → 6-1203 Clubhouse - Electricity
 - City of Rockingham BPAY → 6-1210 Rates, ESL, Waste
 - Tennis West → 6-1602 Pennants: Tennis West Fees
 - WA Return Recycle Renew → 4-9000 Other Income

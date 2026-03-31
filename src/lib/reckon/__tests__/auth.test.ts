@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { getAccessToken, _resetTokenCache } from '../auth'
 import { isReckonConfigured } from '../index'
 
