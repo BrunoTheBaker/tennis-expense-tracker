@@ -237,3 +237,37 @@ export function getOrderedPeriodKeys(): string[] {
     return (FY_ORDER[bM] ?? 0) - (FY_ORDER[aM] ?? 0)
   })
 }
+
+// ─── Single seam for UI data fetching ────────────────────────────────────────
+//
+// The UI should call getFinancialData(key) instead of reading PERIODS directly.
+// When Reckon credentials are configured this will switch to live API data;
+// until then it falls back to the static snapshots above.
+//
+// // TODO: RECKON API — implement live fetch from /api/reckon/* once credentials
+// arrive and the Reckon → FinancialPeriod mapping is confirmed.
+
+export async function getFinancialData(periodKey: string): Promise<FinancialPeriod | null> {
+  // Dynamic import keeps the Reckon module server-side only in RSC contexts.
+  // In client components this falls back to static data (isReckonConfigured = false).
+  let configured = false
+  try {
+    const { isReckonConfigured } = await import('./reckon/index')
+    configured = isReckonConfigured()
+  } catch {
+    // reckon module not available on client — use static data
+  }
+
+  if (!configured) {
+    const key = periodKey === 'full-year'
+      ? (await import('./financialData')).LATEST_PERIOD_KEY
+      : periodKey
+    return PERIODS[key] ?? null
+  }
+
+  // TODO: RECKON API — fetch live period data and map to FinancialPeriod shape.
+  // For now fall through to static data even when configured.
+  console.warn('[getFinancialData] Live Reckon fetch not yet implemented — using static data')
+  const key = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
+  return PERIODS[key] ?? null
+}
