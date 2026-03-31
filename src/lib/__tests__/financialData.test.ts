@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { JAN_2026, getTotalIncome, getTotalExpenses, getNetPosition } from '@/lib/financialData'
+import {
+  JAN_2026,
+  getTotalIncome,
+  getTotalExpenses,
+  getNetPosition,
+  PERIODS,
+  PERIOD_LABELS,
+  LATEST_PERIOD_KEY,
+  getOrderedPeriodKeys,
+  DEC_2025,
+} from '@/lib/financialData'
 
 describe('financialData', () => {
   it('total income matches P&L report', () => {
@@ -23,5 +33,32 @@ describe('financialData', () => {
 
   it('drinks POS gross profit percent is 37%', () => {
     expect(JAN_2026.drinksPOS.grossProfitPct).toBe(37)
+  })
+})
+
+describe('PERIODS map', () => {
+  it('contains dec-2025 and jan-2026', () => {
+    expect(PERIODS['dec-2025']).toBeDefined()
+    expect(PERIODS['jan-2026']).toBeDefined()
+  })
+
+  it('LATEST_PERIOD_KEY is jan-2026', () => {
+    expect(LATEST_PERIOD_KEY).toBe('jan-2026')
+  })
+
+  it('PERIOD_LABELS has human-readable names', () => {
+    expect(PERIOD_LABELS['dec-2025']).toBe('December 2025')
+    expect(PERIOD_LABELS['jan-2026']).toBe('January 2026')
+  })
+
+  it('getOrderedPeriodKeys returns keys in reverse chronological order', () => {
+    const keys = getOrderedPeriodKeys()
+    expect(keys[0]).toBe('jan-2026')
+    expect(keys[1]).toBe('dec-2025')
+  })
+
+  it('LATEST_PERIOD_KEY resolves to JAN_2026 in PERIODS', () => {
+    const period = PERIODS[LATEST_PERIOD_KEY]
+    expect(period).toBe(JAN_2026)
   })
 })
