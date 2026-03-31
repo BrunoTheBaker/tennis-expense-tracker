@@ -27,9 +27,9 @@ import {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { endpoint: string } }
+  { params }: { params: Promise<{ endpoint: string }> }
 ) {
-  const { endpoint } = params
+  const { endpoint } = await params
   const search = req.nextUrl.searchParams
 
   const bookId = search.get('bookId') ?? undefined
