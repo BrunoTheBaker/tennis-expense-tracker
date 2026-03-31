@@ -12,18 +12,18 @@ function Section({ title, rows, total, label }: {
 }) {
   return (
     <div className="mb-5">
-      <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{title}</div>
+      <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-3)' }}>{title}</div>
       <table className="w-full">
         <tbody>
           {rows.map(l => (
             <tr key={l.name} className="border-b border-gray-100">
-              <td className="py-1 text-gray-700 pl-4">{l.name}</td>
-              <td className="py-1 text-right font-mono text-gray-900">${fmt(l.amount)}</td>
+              <td className="py-1 pl-4" style={{ color: 'var(--text-2)' }}>{l.name}</td>
+              <td className="py-1 text-right font-mono" style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>${fmt(l.amount)}</td>
             </tr>
           ))}
           <tr className="border-t border-gray-400 font-semibold">
-            <td className="py-1 text-gray-900">{label}</td>
-            <td className="py-1 text-right font-mono text-gray-900">${fmt(total)}</td>
+            <td className="py-1" style={{ color: 'var(--text-1)' }}>{label}</td>
+            <td className="py-1 text-right font-mono" style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>${fmt(total)}</td>
           </tr>
         </tbody>
       </table>
@@ -49,14 +49,14 @@ export function BalanceSheetReport() {
         <div className="flex items-center gap-3">
           <Image src="/sbtc_logo.png" alt="SBTC" width={48} height={48} className="object-contain" />
           <div>
-            <div className="text-lg font-bold text-gray-900">Safety Bay Tennis Club</div>
-            <div className="text-xs text-gray-500">Financial Report</div>
+            <div className="text-lg font-bold" style={{ color: 'var(--text-1)' }}>Safety Bay Tennis Club</div>
+            <div className="text-xs" style={{ color: 'var(--text-3)' }}>Financial Report</div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-base font-semibold text-gray-900">Balance Sheet</div>
-          <div className="text-xs text-gray-500">As at {period.asAtDate}</div>
-          <div className="text-xs text-gray-500">Accrual basis</div>
+          <div className="text-base font-semibold" style={{ color: 'var(--text-1)' }}>Balance Sheet</div>
+          <div className="text-xs" style={{ color: 'var(--text-3)' }}>As at {period.asAtDate}</div>
+          <div className="text-xs" style={{ color: 'var(--text-3)' }}>Accrual basis</div>
         </div>
       </div>
 
@@ -64,13 +64,13 @@ export function BalanceSheetReport() {
       <Section title="Non-Current Assets" rows={nonCurrentAssets} total={totalNonCurrent} label="Total Non-Current Assets" />
 
       <div className="flex justify-between font-bold border-t-2 border-gray-800 pt-2 mb-6">
-        <span>TOTAL ASSETS</span>
-        <span className="font-mono">${fmt(totalAssets)}</span>
+        <span style={{ color: 'var(--text-1)' }}>TOTAL ASSETS</span>
+        <span className="font-mono" style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>${fmt(totalAssets)}</span>
       </div>
 
       <Section title="Equity" rows={equity} total={totalEquity} label="Total Equity" />
 
-      <div className="mt-6 text-xs text-gray-400 text-center">
+      <div className="mt-6 text-xs text-center" style={{ color: 'var(--text-3)' }}>
         Generated {new Date().toLocaleDateString('en-AU')} · Safety Bay Tennis Club
       </div>
     </div>

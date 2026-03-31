@@ -42,13 +42,13 @@ export function FinancialReports() {
       </div>
 
       {/* Report */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid', borderColor: 'var(--border)' }}>
         {active === 'pl'      && <PLReport />}
         {active === 'balance' && <BalanceSheetReport />}
         {active === 'drinks'  && <DrinksReport />}
       </div>
 
-      <p className="text-xs text-gray-400 no-print text-center">
+      <p className="text-xs no-print text-center" style={{ color: 'var(--text-3)' }}>
         To save as PDF: Print → Save as PDF → Destination: Save as PDF
       </p>
     </div>
