@@ -27,7 +27,27 @@ export async function suggestCostCentre(
     messages: [
       {
         role: 'user',
-        content: `You are a bookkeeper for Safety Bay Tennis Club. Given a bank transaction, suggest the most appropriate cost centre from the chart of accounts below.
+        content: `You are a bookkeeper for Safety Bay Tennis Club (SBTC), Perth WA.
+
+KNOWN MERCHANT MAPPINGS (use these first before guessing):
+- BWS / Big Brews → 5-1000 COGS: Drinks
+- Karen Wenham → 6-1201 Cleaning Honorarium
+- Shane Fox / Fox Tennis Academy → 6-5005 Coaching Kidsport
+- Jims Mowing / Barra's Mowing → 6-1403 Grounds: Repairs & Maintenance
+- Elders Insurance → 6-7003 Insurance
+- Pentanet → 6-1211 Internet Connection
+- Reckon Ltd → 6-7099 Computer Software
+- Synergy BPAY → 6-1212 Electricity
+- City of Rockingham BPAY → 6-1210 Rates, ESL, Waste
+- Tennis West → 6-1602 Pennants: Tennis West Fees
+- WA Return Recycle Renew → 4-9000 Other Income
+- DEPOSIT ROCKINGHAM CITY / Cash Income → 4-4011 Drink Sales (cash)
+- Shane Fox INV (coaching rent) → 4-5001 Coaching Rent Income
+
+SQUARE POS categories map to:
+- Drinks → 4-4011 Drink Sales
+- Monday Social → 4-0201, Wednesday → 4-0202, Thursday → 4-0203
+- Friday → 4-0205, Friday Night → 4-0206, Sunday → 4-0207
 
 Transaction:
 - Description: ${description}
@@ -36,13 +56,10 @@ Transaction:
 Chart of accounts:
 ${accountList}
 
-Reply with ONLY a JSON object in this exact format (no markdown, no explanation):
+Reply with ONLY a JSON object (no markdown):
 {"code": "6-1402", "name": "Grounds - Consumables", "confidence": "high"}
 
-Confidence rules:
-- "high": description clearly matches one account
-- "medium": reasonable match but could be another
-- "low": unclear or ambiguous`,
+Confidence: "high" = clear match, "medium" = likely match, "low" = unclear`,
       },
     ],
   })
