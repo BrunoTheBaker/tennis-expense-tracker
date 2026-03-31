@@ -92,16 +92,43 @@ export function ReviewTable({ transactions, onChange }: Props) {
     setEditingIdx(null)
   }, [transactions, onChange])
 
+  const acceptAll = useCallback(() => {
+    const updated = transactions.map((t, i) => {
+      if (t.status !== 'pending') return t
+      const sug = suggestions[i]
+      if (!sug?.code || sug.loading) return t
+      setCachedSuggestion(t.description, sug.code, sug.name)
+      return { ...t, accountCode: sug.code, status: 'confirmed' as const, confidence: sug.confidence }
+    })
+    onChange(updated)
+  }, [suggestions, transactions, onChange])
+
+  const pendingWithSuggestion = transactions.filter((t, i) =>
+    t.status === 'pending' && suggestions[i]?.code && !suggestions[i]?.loading
+  ).length
+
   return (
-    <div className="card overflow-x-auto">
+    <div className="space-y-3">
+      <div className="flex justify-between items-center">
+        <p className="text-sm" style={{ color: 'var(--text-2)' }}>
+          {transactions.length} transactions
+        </p>
+        {pendingWithSuggestion > 0 && (
+          <button onClick={acceptAll} className="btn-primary text-sm">
+            Accept All AI Proposals ({pendingWithSuggestion})
+          </button>
+        )}
+      </div>
+      <div className="card overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-50">
+        <thead style={{ background: 'var(--bg)' }}>
           <tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase text-xs">Date</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase text-xs">Description</th>
-            <th className="px-4 py-3 text-right font-medium text-gray-500 uppercase text-xs">Amount</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase text-xs">Suggested Cost Centre</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-500 uppercase text-xs">Actions</th>
+            <th className="px-4 py-3 text-left font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Date</th>
+            <th className="px-4 py-3 text-left font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Description</th>
+            <th className="px-4 py-3 text-right font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Amount</th>
+            <th className="px-4 py-3 text-left font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Source</th>
+            <th className="px-4 py-3 text-left font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Proposed Account</th>
+            <th className="px-4 py-3 text-left font-medium uppercase text-xs" style={{ color: 'var(--text-3)', fontSize: '11px' }}>Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -114,6 +141,16 @@ export function ReviewTable({ transactions, onChange }: Props) {
                 <td className="px-4 py-3 text-gray-900 max-w-xs truncate">{t.description}</td>
                 <td className={`px-4 py-3 text-right font-mono whitespace-nowrap ${t.amount >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                   {t.amount >= 0 ? '+' : ''}${Math.abs(t.amount).toFixed(2)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{
+                    background: t.source === 'square' ? 'rgba(29,158,117,0.1)' :
+                                t.source === 'stripe' ? 'rgba(30,58,95,0.1)' : 'rgba(107,114,128,0.1)',
+                    color: t.source === 'square' ? 'var(--brand)' :
+                           t.source === 'stripe' ? 'var(--nav)' : 'var(--text-3)',
+                  }}>
+                    {t.source ?? 'reckon'}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   {t.status === 'confirmed' ? (
@@ -173,6 +210,7 @@ export function ReviewTable({ transactions, onChange }: Props) {
           })}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }
