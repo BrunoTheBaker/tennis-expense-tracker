@@ -78,6 +78,67 @@ export function getNetPosition(period: FinancialPeriod): number {
   return getTotalIncome(period) - getTotalExpenses(period) - getTotalCOGS(period)
 }
 
+// ─── Dec 2025 Actuals (YTD: 1 Mar 2025 – 31 Dec 2025) ───────────────────────
+// Source: Reckon P&L + Balance Sheet reports (validation docs in Monthly/06 Dec 2025/Reports/)
+// Drinks POS derived: Opening Stock + Purchases - Closing Stock = COGS from P&L
+
+export const DEC_2025: FinancialPeriod = {
+  label: '1 March 2025 to 31 December 2025',
+  asAtDate: '31 December 2025',
+
+  pnl: [
+    { code: '4-0600', name: 'Junior Program',    income: 870.02,   expenses: 604.40 },
+    { code: '4-0100', name: 'Memberships',        income: 18458.39, expenses: 4029.30 },
+    { code: '4-7000', name: 'Coaching Income',    income: 4013.00,  expenses: 1433.00 },
+    { code: '4-6000', name: 'Events',             income: 5624.20,  expenses: 6418.91 },
+    { code: '4-0400', name: 'Tournaments',        income: 4980.90,  expenses: 3260.59 },
+    { code: '4-0300', name: 'Pennants',           income: 6787.48,  expenses: 4829.01 },
+    { code: '4-0200', name: 'Social Sessions',    income: 7516.25,  expenses: 1945.40 },
+    { code: '4-9000', name: 'Other Income',       income: 32030.48, expenses: 0 },
+    { code: '4-0500', name: 'Court Hire',         income: 8247.62,  expenses: 0 },
+    { code: '4-4011', name: 'Drink Sales',        income: 6721.62,  expenses: 0 },
+    { code: '4-8001', name: 'Interest Received',  income: 98.58,    expenses: 0 },
+    { code: '6-1200', name: 'Clubhouse',          income: 0,        expenses: 17685.71 },
+    { code: '6-1300', name: 'Courts',             income: 0,        expenses: 5720.02 },
+    { code: '6-1400', name: 'Grounds',            income: 0,        expenses: 7001.39 },
+    { code: '6-7000', name: 'Other Expenditure',  income: 0,        expenses: 5279.64 },
+    { code: '6-1100', name: 'Membership Costs',   income: 0,        expenses: 0 },
+  ],
+
+  balanceSheet: [
+    // Current Assets
+    { name: 'Building Fundraiser Term Deposit',  amount: 38959.47, section: 'current_assets' },
+    { name: 'Bank - Cards Petty Cash',           amount: 533.63,   section: 'current_assets' },
+    { name: 'Bank - Building Fund',              amount: 10011.85, section: 'current_assets' },
+    { name: 'Bank - Asset Renewal Term Deposit', amount: 60898.92, section: 'current_assets' },
+    { name: 'Bank - Asset Renewal Account',      amount: 32222.74, section: 'current_assets' },
+    { name: 'Bank - Trading Account',            amount: 38484.22, section: 'current_assets' },
+    { name: 'Accounts Receivable', code: '1-1210', amount: -43.04,   section: 'current_assets' },
+    { name: 'Uniform Stock',       code: '1-1302', amount: 405.00,   section: 'current_assets' },
+    { name: 'Drinks Stock',        code: '1-1301', amount: 2018.88,  section: 'current_assets' },
+    // Non-Current Assets
+    { name: 'Playground and Shade Sails',         amount: 23850.50, section: 'non_current_assets' },
+    { name: 'Court Booking System Infrastructure',amount: 20738.21, section: 'non_current_assets' },
+    { name: 'Plant and Equipment', code: '1-7120', amount: 11934.28, section: 'non_current_assets' },
+    // Equity
+    { name: 'Opening Balance Equity', code: '3-0100', amount: 98700.01,  section: 'equity' },
+    { name: 'Retained Earnings',      code: '3-1000', amount: 106735.83, section: 'equity' },
+    { name: 'Current Year Earnings',               amount: 34578.82,  section: 'equity' },
+  ],
+
+  drinksPOS: {
+    periodStart:    '01/03/2025',
+    periodEnd:      '31/12/2025',
+    sales:          6721.62,
+    openingStock:   818.08,
+    purchases:      3798.15,  // derived: COGS + closingStock - openingStock
+    closingStock:   2018.88,
+    cogs:           2597.35,
+    profit:         4124.27,
+    grossProfitPct: 61,
+  },
+}
+
 // ─── Jan 2026 Actuals (YTD: 1 Mar 2025 – 31 Jan 2026) ───────────────────────
 // Source: Reckon P&L reports exported 24 March 2026
 // Balance Sheet: manually updated — update each month from Reckon export
