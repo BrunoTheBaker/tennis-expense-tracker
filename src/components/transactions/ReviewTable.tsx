@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Transaction } from '@/lib/financialData'
 import { accounts } from '@/lib/accounts'
 import CostCentrePicker from '@/components/allocation/CostCentrePicker'
@@ -14,6 +14,12 @@ interface Props {
 export function ReviewTable({ transactions, onChange }: Props) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    }
+  }, [])
 
   const handleSelect = useCallback((i: number, code: string) => {
     const account = accounts.find(a => a.code === code)

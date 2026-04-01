@@ -13,7 +13,7 @@ import {
 } from '@/lib/categoriser'
 
 import type { Transaction } from '@/lib/financialData'
-import { COST_CENTRES, SQUARE_CATEGORY_MAP, COST_CENTRE_MAP, type CostCentre } from '@/lib/costCentres'
+import { COST_CENTRES, type CostCentre } from '@/lib/costCentres'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
