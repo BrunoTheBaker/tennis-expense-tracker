@@ -23,6 +23,7 @@ describe('groupByOrder', () => {
     const map = groupByOrder([txA1, txA2, txA3, txB1])
     expect(map.get('ord-A')).toHaveLength(3)
     expect(map.get('ord-B')).toHaveLength(1)
+    expect(map.get('ord-B')?.[0]).toBe(txB1)
   })
 
   it('omits transactions without orderId', () => {
@@ -37,6 +38,8 @@ describe('getOrderSiblings', () => {
     const siblings = getOrderSiblings(txA1, [txA1, txA2, txA3, txB1])
     expect(siblings).toHaveLength(2)
     expect(siblings.some(t => t === txA1)).toBe(false)
+    expect(siblings.some(t => t === txA2)).toBe(true)
+    expect(siblings.some(t => t === txA3)).toBe(true)
   })
 
   it('returns [] when transaction has no orderId', () => {
@@ -50,7 +53,11 @@ describe('getOrderTotal', () => {
     expect(total).toBeCloseTo(13.00)
   })
 
-  it('returns the transaction amount alone when it has no siblings', () => {
+  it('returns single-item group total when no other transactions share the orderId', () => {
     expect(getOrderTotal(txB1, [txB1])).toBeCloseTo(8.00)
+  })
+
+  it('returns transaction amount when transaction has no orderId', () => {
+    expect(getOrderTotal(txNoOrder, [txA1, txNoOrder])).toBeCloseTo(5.00)
   })
 })
