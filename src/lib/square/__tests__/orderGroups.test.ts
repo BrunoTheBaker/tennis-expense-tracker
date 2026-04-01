@@ -42,6 +42,12 @@ describe('getOrderSiblings', () => {
   it('returns [] when transaction has no orderId', () => {
     expect(getOrderSiblings(txNoOrder, [txA1, txNoOrder])).toEqual([])
   })
+
+  it('does not include transactions from a different orderId', () => {
+    const siblings = getOrderSiblings(txA1, [txA1, txA2, txB1])
+    expect(siblings.every(t => t.orderId === 'ord-A')).toBe(true)
+    expect(siblings).toHaveLength(1)  // only txA2, not txB1
+  })
 })
 
 describe('getOrderTotal', () => {

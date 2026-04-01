@@ -18,6 +18,9 @@ export function groupByOrder(transactions: Transaction[]): Map<string, Transacti
 /**
  * Returns all transactions that share the same orderId as the given transaction,
  * excluding the transaction itself.
+ *
+ * NOTE: Self-exclusion uses reference equality (===). Callers must pass the exact
+ * same transaction object that appears in allTransactions, not a copy.
  */
 export function getOrderSiblings(
   transaction: Transaction,
