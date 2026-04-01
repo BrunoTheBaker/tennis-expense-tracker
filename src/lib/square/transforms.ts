@@ -1,4 +1,4 @@
-import type { Payment } from './types'
+import type { Payment, Order, OrderLineItem } from './types'
 import type { Transaction } from '@/lib/financialData'
 
 /** Convert a Square ISO 8601 timestamp to DD/MM/YYYY */
@@ -25,4 +25,44 @@ export function squarePaymentToTransaction(payment: Payment): Transaction {
     source:      'square',
     accountCode: undefined,
   }
+}
+
+/**
+ * Map a single Order line item to a Transaction.
+ * categoryName comes from the catalog cache (getCategoryName).
+ * Uses base_price_money (product sales ex-surcharge) for accounting.
+ */
+export function squareLineItemToTransaction(
+  lineItem: OrderLineItem,
+  order: Order,
+  categoryName?: string
+): Transaction {
+  const credit = lineItem.base_price_money.amount / 100
+  const parts = [categoryName, lineItem.name].filter(Boolean)
+  const description = parts.join(' – ')
+
+  return {
+    date:        isoToDisplayDate(order.created_at),
+    description: description || 'Square item',
+    debit:       0,
+    credit,
+    amount:      credit,
+    reference:   order.id,
+    status:      'pending',
+    source:      'square',
+    accountCode: undefined,
+  }
+}
+
+/**
+ * Expand all line items in an Order into Transactions.
+ * Pass categoryName resolver from the catalog cache.
+ */
+export function orderToTransactions(
+  order: Order,
+  resolveCategoryName: (variationId: string | undefined) => string | undefined
+): Transaction[] {
+  return (order.line_items ?? [])
+    .filter(li => li.item_type === 'ITEM')  // exclude custom_amount, service charges
+    .map(li => squareLineItemToTransaction(li, order, resolveCategoryName(li.catalog_object_id)))
 }
