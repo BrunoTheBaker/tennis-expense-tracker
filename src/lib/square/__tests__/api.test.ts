@@ -154,6 +154,28 @@ describe('squareLineItemToTransaction', () => {
     expect(tx.date).toBe('29/03/2026')
   })
 
+  it('populates squareCategory, squareItemName, squareItemId, and orderId', () => {
+    const order: Order = {
+      id: 'ord_xyz', location_id: 'LOC1', state: 'COMPLETED',
+      created_at: '2026-03-29T06:00:00Z', updated_at: '2026-03-29T06:00:00Z',
+      total_money: { amount: 400, currency: 'AUD' },
+    }
+    const lineItem: OrderLineItem = {
+      uid: 'li1', name: 'Day Fee', quantity: '1', item_type: 'ITEM',
+      variation_name: 'Regular',
+      base_price_money: { amount: 400, currency: 'AUD' },
+      total_money: { amount: 406, currency: 'AUD' },
+      catalog_object_id: 'VAR_SUNDAY',
+    }
+
+    const tx = squareLineItemToTransaction(lineItem, order, 'Sunday Social')
+
+    expect(tx.squareCategory).toBe('Sunday Social')
+    expect(tx.squareItemName).toBe('Day Fee')
+    expect(tx.squareItemId).toBe('VAR_SUNDAY')
+    expect(tx.orderId).toBe('ord_xyz')
+  })
+
   it('uses item name alone when no category is available', () => {
     const order: Order = {
       id: 'ord_xyz', location_id: 'LOC1', state: 'COMPLETED',
