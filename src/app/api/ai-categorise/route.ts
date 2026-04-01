@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { COST_CENTRES, COST_CENTRE_MAP } from '@/lib/costCentres'
+import { COST_CENTRES, COST_CENTRE_MAP, SQUARE_CATEGORY_MAP } from '@/lib/costCentres'
 import { suggestCostCentres, type CostCentreSuggestion } from '@/lib/categoriser'
 
 const client = new Anthropic()
@@ -30,6 +30,8 @@ interface RequestBody {
   description: string
   amount: number
   source?: string
+  squareCategory?: string
+  squareItemName?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -40,15 +42,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { description, amount, source } = body
+  const { description, amount, source, squareCategory, squareItemName } = body
   if (!description) {
     return NextResponse.json({ error: 'description is required' }, { status: 400 })
   }
 
   // Get keyword suggestions as baseline context for the model
-  const keywordSuggestions = suggestCostCentres(description)
+  const keywordSuggestions = suggestCostCentres({
+    description, amount, debit: 0, credit: amount,
+    date: '', reference: '', status: 'pending',
+    squareCategory, squareItemName,
+  })
     .map(s => s.costCentre.ledgerCode)
     .join(', ')
+
+  const squareContext = squareCategory
+    ? `Square catalog category: "${squareCategory}"${squareItemName ? `, item: "${squareItemName}"` : ''}`
+    : 'No Square catalog data available'
 
   const prompt = `You are an accounting assistant for Safety Bay Tennis Club (SBTC), a community tennis club in Perth, WA.
 
@@ -58,7 +68,11 @@ Transaction:
   Description: ${description}
   Amount: $${Math.abs(amount).toFixed(2)} (${amount < 0 ? 'debit/expense' : 'credit/income'})
   Source: ${source ?? 'bank'}
+  ${squareContext}
   Keyword hints: ${keywordSuggestions || 'none'}
+
+Square category mappings (treat these as ground truth where present):
+${Object.entries(SQUARE_CATEGORY_MAP).map(([cat, code]) => `  "${cat}" → ${code}`).join('\n')}
 
 Available cost centres:
 ${CC_LIST}
@@ -71,6 +85,7 @@ Return a JSON array of up to 3 suggestions, ordered by best match first:
 
 Rules:
 - Only return codes that exist in the list above.
+- If a Square category mapping exists above for this transaction, use it as the top result with confidence "high".
 - confidence "high" = very clear match, "medium" = probable, "low" = possible but uncertain.
 - Use expense accounts (6-xxxx) for debits, income accounts (4-xxxx) for credits, COGS (5-xxxx) for drink stock purchases.
 - Synergy = electricity (6-1203), Pentanet = internet (6-1211), City of Rockingham = rates (6-1210), Jim's Mowing / Barras Mowing = grounds maintenance (6-1403), BWS = drinks stock purchase (5-1000), Fox Tennis Academy / Karen Wenham = coaching lease (4-7004), Stripe payout = court hire (4-0501), interest on term deposit = interest received (4-8001).
@@ -106,7 +121,11 @@ Rules:
     const message = err instanceof Error ? err.message : String(err)
     console.error('[/api/ai-categorise]', message)
     // Graceful degradation: return keyword suggestions
-    const fallback = suggestCostCentres(description)
+    const fallback = suggestCostCentres({
+      description, amount, debit: 0, credit: amount,
+      date: '', reference: '', status: 'pending',
+      squareCategory, squareItemName,
+    })
     return NextResponse.json({ suggestions: fallback, _fallback: true })
   }
 }

@@ -452,3 +452,31 @@ export const COST_CENTRES: CostCentre[] = [
 export const COST_CENTRE_MAP: Map<string, CostCentre> = new Map(
   COST_CENTRES.map(cc => [cc.ledgerCode, cc])
 )
+
+/**
+ * Maps Square POS catalog category names → Reckon ledger codes.
+ * Derived from the SBTC Square account at Safety Bay Tennis Club.
+ * These are the 19 categories returned by GET /v2/catalog/list?types=CATEGORY.
+ * Where a mapping exists, treat it as high-confidence ground truth.
+ */
+export const SQUARE_CATEGORY_MAP: Record<string, string> = {
+  'Monday Social':          '4-0201',  // Social Sessions - Mondays
+  'Wednesday Night Social': '4-0202',  // Social Sessions - Wednesday Nights
+  'Thursday Social':        '4-0203',  // Social Sessions - Thursday Ladies
+  'Pickleball':             '4-0204',  // Social Sessions - Sunday Pickleball
+  'Friday Social':          '4-0205',  // Social Sessions - Fridays
+  'Friday Evening':         '4-0206',  // Social Sessions - Friday Nights
+  'Sunday Social':          '4-0207',  // Social Sessions - Sundays
+  'Junior Social':          '4-0600',  // Junior Program (parent)
+  'Drinks':                 '4-4011',  // Drink Sales
+  'Membership Fees':        '4-0101',  // Memberships - Adult/Senior (most common type)
+  'Pennant Fees':           '4-0301',  // Pennants - Tennis West Fees
+  'Tournaments':            '4-0401',  // Tournaments - Nomination Fees
+  'Canteen':                '4-4011',  // Drink Sales (canteen sales = drinks at SBTC)
+  'TW Canteen':             '4-0402',  // Tournaments - Canteen Sales
+  'Events':                 '4-6000',  // Events
+  'Uniforms':               '4-0113',  // Uniforms
+  'Balls':                  '4-4014',  // New Balls (income side for POS ball sales)
+  'Social Tennis fees':     '4-0200',  // Social Sessions (parent — item name determines sub-code)
+  'Fees':                   '4-0200',  // Social Sessions (generic — item name determines sub-code)
+}

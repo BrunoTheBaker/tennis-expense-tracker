@@ -7,7 +7,8 @@
  * Both return CostCentreSuggestion[] ordered by score descending, max 3 results.
  */
 
-import { COST_CENTRES, type CostCentre } from './costCentres'
+import { COST_CENTRES, SQUARE_CATEGORY_MAP, COST_CENTRE_MAP, type CostCentre } from './costCentres'
+import type { Transaction } from './financialData'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,10 +45,31 @@ function scoreCostCentre(cc: CostCentre, desc: string): number {
 }
 
 /**
- * Pure keyword-based suggestions.
+ * Pure cost centre suggestions. Scoring priority:
+ * 1. squareCategory exact match in SQUARE_CATEGORY_MAP → score 0.95
+ * 2. description keyword scoring (existing logic) → score 0–1
  * Returns up to MAX_SUGGESTIONS entries with score ≥ MIN_SCORE, ordered by score.
  */
-export function suggestCostCentres(description: string): CostCentreSuggestion[] {
+export function suggestCostCentres(transaction: Transaction): CostCentreSuggestion[] {
+  const { description, squareCategory } = transaction
+
+  // Priority 1: Square category exact map lookup
+  if (squareCategory) {
+    const ledgerCode = SQUARE_CATEGORY_MAP[squareCategory]
+    if (ledgerCode) {
+      const cc = COST_CENTRE_MAP.get(ledgerCode)
+      if (cc) {
+        return [{
+          costCentre: cc,
+          score: 0.95,
+          confidence: 'high',
+          reason: 'Auto-matched via Square',
+        }]
+      }
+    }
+  }
+
+  // Priority 2: description keyword scoring (fallback)
   if (!description.trim()) return []
 
   const scored = COST_CENTRES
@@ -69,6 +91,8 @@ export interface AiCategoriseRequest {
   description: string
   amount: number
   source?: string
+  squareCategory?: string
+  squareItemName?: string
 }
 
 /**
@@ -76,8 +100,21 @@ export interface AiCategoriseRequest {
  * Falls back to keyword suggestions if the request fails.
  */
 export async function aiSuggestCostCentres(
-  req: AiCategoriseRequest
+  transaction: Transaction
 ): Promise<CostCentreSuggestion[]> {
+  // If squareCategory maps directly, skip the AI call — we already have a high-confidence answer
+  if (transaction.squareCategory && SQUARE_CATEGORY_MAP[transaction.squareCategory]) {
+    return suggestCostCentres(transaction)
+  }
+
+  const req: AiCategoriseRequest = {
+    description:    transaction.description,
+    amount:         transaction.amount,
+    source:         transaction.source,
+    squareCategory: transaction.squareCategory,
+    squareItemName: transaction.squareItemName,
+  }
+
   try {
     const res = await fetch('/api/ai-categorise', {
       method: 'POST',
@@ -87,13 +124,13 @@ export async function aiSuggestCostCentres(
 
     if (!res.ok) {
       console.warn('[aiSuggestCostCentres] API error', res.status)
-      return suggestCostCentres(req.description)
+      return suggestCostCentres(transaction)
     }
 
     const data = await res.json() as { suggestions: CostCentreSuggestion[] }
     return data.suggestions ?? []
   } catch (err) {
     console.warn('[aiSuggestCostCentres] fetch failed, falling back to keyword scorer', err)
-    return suggestCostCentres(req.description)
+    return suggestCostCentres(transaction)
   }
 }
