@@ -100,6 +100,8 @@ export default function CostCentrePicker({
       description: transactionDescription,
       amount: transactionAmount,
       source: transactionSource,
+      debit: 0, credit: transactionAmount,
+      date: '', reference: '', status: 'pending',
     })
       .then(results => {
         if (!cancelled) setSuggestions(results)
