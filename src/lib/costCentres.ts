@@ -467,7 +467,7 @@ export const SQUARE_CATEGORY_MAP: Record<string, string> = {
   'Friday Social':          '4-0205',  // Social Sessions - Fridays
   'Friday Evening':         '4-0206',  // Social Sessions - Friday Nights
   'Sunday Social':          '4-0207',  // Social Sessions - Sundays
-  'Junior Social':          '4-0600',  // Junior Program (parent)
+  'Junior Social':          '4-0207',  // Junior Program — maps to Sunday Social as closest active sub-code
   'Drinks':                 '4-4011',  // Drink Sales
   'Membership Fees':        '4-0101',  // Memberships - Adult/Senior (most common type)
   'Pennant Fees':           '4-0301',  // Pennants - Tennis West Fees
@@ -477,6 +477,6 @@ export const SQUARE_CATEGORY_MAP: Record<string, string> = {
   'Events':                 '4-6000',  // Events
   'Uniforms':               '4-0113',  // Uniforms
   'Balls':                  '4-4014',  // New Balls (income side for POS ball sales)
-  'Social Tennis fees':     '4-0200',  // Social Sessions (parent — item name determines sub-code)
-  'Fees':                   '4-0200',  // Social Sessions (generic — item name determines sub-code)
+  'Social Tennis fees':     '4-0207',  // Generic social fees — item name determines actual sub-code; Sunday Social used as default
+  'Fees':                   '4-0207',  // Generic fees — item name determines actual sub-code; Sunday Social used as default
 }

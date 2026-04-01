@@ -94,4 +94,18 @@ describe('suggestCostCentres — Square category signals', () => {
   it('returns [] for empty description and no squareCategory', () => {
     expect(suggestCostCentres(makeTx(''))).toEqual([])
   })
+
+  it('returns result for Junior Social squareCategory', () => {
+    const tx = makeTx('Junior Social – Day Fee', { squareCategory: 'Junior Social' })
+    const results = suggestCostCentres(tx)
+    expect(results.length).toBeGreaterThan(0)
+    expect(results[0].confidence).toBe('high')
+  })
+
+  it('returns result for Fees squareCategory', () => {
+    const tx = makeTx('Social fee', { squareCategory: 'Fees' })
+    const results = suggestCostCentres(tx)
+    expect(results.length).toBeGreaterThan(0)
+    expect(results[0].confidence).toBe('high')
+  })
 })
