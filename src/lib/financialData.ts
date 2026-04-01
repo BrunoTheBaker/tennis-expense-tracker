@@ -11,6 +11,11 @@ export interface Transaction {
   confidence?: 'high' | 'medium' | 'low'
   status: 'pending' | 'confirmed' | 'skipped'
   source?: 'reckon' | 'square' | 'stripe'
+  // Square-specific fields (undefined for non-Square transactions)
+  orderId?: string          // groups line items from the same terminal tap
+  squareCategory?: string   // Square catalog category name e.g. 'Sunday Social'
+  squareItemName?: string   // Square catalog item name e.g. 'Day Fee'
+  squareItemId?: string     // Square catalog_object_id (variation ID)
 }
 
 export interface PnLCategory {

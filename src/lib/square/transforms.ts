@@ -42,15 +42,20 @@ export function squareLineItemToTransaction(
   const description = parts.join(' – ')
 
   return {
-    date:        isoToDisplayDate(order.created_at),
-    description: description || 'Square item',
-    debit:       0,
+    date:           isoToDisplayDate(order.created_at),
+    description:    description || 'Square item',
+    debit:          0,
     credit,
-    amount:      credit,
-    reference:   order.id,
-    status:      'pending',
-    source:      'square',
-    accountCode: undefined,
+    amount:         credit,
+    reference:      order.id,
+    status:         'pending',
+    source:         'square',
+    accountCode:    undefined,
+    // Square-specific fields
+    orderId:        order.id,
+    squareCategory: categoryName,
+    squareItemName: lineItem.name,
+    squareItemId:   lineItem.catalog_object_id,
   }
 }
 
