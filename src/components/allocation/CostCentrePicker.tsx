@@ -12,15 +12,14 @@ import {
   type CostCentreSuggestion,
 } from '@/lib/categoriser'
 
-import { COST_CENTRES, type CostCentre } from '@/lib/costCentres'
+import type { Transaction } from '@/lib/financialData'
+import { COST_CENTRES, SQUARE_CATEGORY_MAP, COST_CENTRE_MAP, type CostCentre } from '@/lib/costCentres'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  transactionDescription: string
-  transactionAmount: number      // positive = income, negative = expense
-  transactionSource?: string
-  currentCode?: string           // already-assigned ledger code if any
+  transaction: Transaction          // full transaction (replaces individual string props)
+  currentCode?: string
   onSelect: (code: string, label: string) => void
   disabled?: boolean
 }
@@ -64,9 +63,7 @@ function filterCostCentres(query: string): CostCentre[] {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CostCentrePicker({
-  transactionDescription,
-  transactionAmount,
-  transactionSource,
+  transaction,
   currentCode,
   onSelect,
   disabled = false,
@@ -91,16 +88,12 @@ export default function CostCentrePicker({
 
   // ── Fetch AI suggestions on description change ───────────────────────────────
   useEffect(() => {
-    if (!transactionDescription) return
+    if (!transaction.description) return
 
     let cancelled = false
     setLoading(true)
 
-    aiSuggestCostCentres({
-      description: transactionDescription,
-      amount: transactionAmount,
-      source: transactionSource,
-    })
+    aiSuggestCostCentres(transaction)
       .then(results => {
         if (!cancelled) setSuggestions(results)
       })
@@ -109,7 +102,8 @@ export default function CostCentrePicker({
       })
 
     return () => { cancelled = true }
-  }, [transactionDescription, transactionAmount, transactionSource])
+  }, [transaction.description, transaction.amount, transaction.source,
+      transaction.squareCategory, transaction.squareItemName])
 
   // ── Close dropdown on outside click ─────────────────────────────────────────
   useEffect(() => {
@@ -265,6 +259,13 @@ export default function CostCentrePicker({
           })
         )}
       </div>
+
+      {/* Auto-match label */}
+      {suggestions.length > 0 && suggestions[0].reason === 'Auto-matched via Square' && (
+        <p style={{ fontSize: '11px', color: 'var(--text-3)', fontStyle: 'italic', marginTop: '2px' }}>
+          Auto-matched via Square
+        </p>
+      )}
 
       {/* Search input */}
       <div className="relative">
