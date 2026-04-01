@@ -8,21 +8,6 @@ interface Props {
   allTransactions: Transaction[]
 }
 
-/** Formats DD/MM/YYYY + time from ISO string (Perth AWST = UTC+8) */
-function formatDateTime(iso: string | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  // Offset by +8 hours for Perth time
-  const perth = new Date(d.getTime() + 8 * 60 * 60 * 1000)
-  const day = perth.toLocaleDateString('en-AU', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
-  })
-  const time = perth.toLocaleTimeString('en-AU', {
-    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC'
-  })
-  return `${day} ${time}`
-}
-
 export default function SquareTransactionPopover({ transaction, allTransactions }: Props) {
   const siblings = getOrderSiblings(transaction, allTransactions)
   const orderItems = [transaction, ...siblings].sort((a, b) => a.description.localeCompare(b.description))
@@ -37,8 +22,6 @@ export default function SquareTransactionPopover({ transaction, allTransactions 
         minWidth: '260px',
         fontSize: '13px',
         pointerEvents: 'none',
-        border: '1px solid var(--border)',
-        background: 'var(--surface)',
       }}
     >
       {/* Header */}
@@ -67,7 +50,7 @@ export default function SquareTransactionPopover({ transaction, allTransactions 
           </p>
           <div className="space-y-0.5">
             {orderItems.map((t, i) => (
-              <div key={i} className="flex justify-between">
+              <div key={t.squareItemId ?? t.description} className="flex justify-between">
                 <span style={{ color: 'var(--text-2)', fontSize: '12px' }} className="truncate mr-2">
                   {t.description}
                 </span>
