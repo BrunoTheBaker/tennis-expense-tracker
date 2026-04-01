@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Transaction } from '@/lib/financialData'
 import { accounts } from '@/lib/accounts'
 import CostCentrePicker from '@/components/allocation/CostCentrePicker'
+import SquareTransactionPopover from '@/components/allocation/SquareTransactionPopover'
 
 interface Props {
   transactions: Transaction[]
@@ -11,6 +12,9 @@ interface Props {
 }
 
 export function ReviewTable({ transactions, onChange }: Props) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleSelect = useCallback((i: number, code: string) => {
     const account = accounts.find(a => a.code === code)
     const updated = transactions.map((t, idx) =>
@@ -66,8 +70,26 @@ export function ReviewTable({ transactions, onChange }: Props) {
                   <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--text-2)' }}>
                     {t.date}
                   </td>
-                  <td className="px-4 py-3 max-w-xs" style={{ color: 'var(--text-1)' }}>
+                  <td
+                    className="px-4 py-3 max-w-xs"
+                    style={{ color: 'var(--text-1)', position: 'relative' }}
+                    onMouseEnter={() => {
+                      if (t.source === 'square') {
+                        hoverTimerRef.current = setTimeout(() => setHoveredIdx(i), 200)
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+                      setHoveredIdx(null)
+                    }}
+                  >
                     <span className="block truncate">{t.description}</span>
+                    {t.source === 'square' && hoveredIdx === i && (
+                      <SquareTransactionPopover
+                        transaction={t}
+                        allTransactions={transactions}
+                      />
+                    )}
                   </td>
                   <td className={`px-4 py-3 text-right font-mono whitespace-nowrap ${t.amount >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                     {t.amount >= 0 ? '+' : '−'}${Math.abs(t.amount).toFixed(2)}
@@ -87,9 +109,7 @@ export function ReviewTable({ transactions, onChange }: Props) {
                       <span className="text-gray-400 italic text-xs">Skipped</span>
                     ) : (
                       <CostCentrePicker
-                        transactionDescription={t.description}
-                        transactionAmount={t.amount}
-                        transactionSource={t.source}
+                        transaction={t}
                         currentCode={t.status === 'confirmed' ? t.accountCode : undefined}
                         onSelect={(code: string) => handleSelect(i, code)}
                         disabled={t.status === 'confirmed'}
