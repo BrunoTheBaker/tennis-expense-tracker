@@ -52,6 +52,66 @@ export interface SquareApiErrorItem {
   detail: string
 }
 
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+export interface OrderLineItem {
+  uid: string
+  catalog_object_id?: string  // variation ID — use for catalog lookup
+  name: string
+  quantity: string
+  variation_name?: string
+  base_price_money: Money     // product price ex-surcharge (use for accounting)
+  gross_sales_money?: Money   // inc. surcharge
+  total_money: Money
+  total_discount_money?: Money
+  item_type: string           // 'ITEM' | 'CUSTOM_AMOUNT'
+}
+
+export interface Order {
+  id: string
+  location_id: string
+  line_items?: OrderLineItem[]
+  created_at: string
+  updated_at: string
+  state: string
+  total_money: Money
+}
+
+export interface SearchOrdersResponse {
+  orders?: Order[]
+  cursor?: string
+  errors?: SquareApiErrorItem[]
+}
+
+// ─── Catalog ─────────────────────────────────────────────────────────────────
+
+export interface CatalogObject {
+  type: string        // 'ITEM' | 'CATEGORY' | 'ITEM_VARIATION' | ...
+  id: string
+  is_deleted?: boolean
+  item_data?: {
+    name: string
+    variations?: CatalogObject[]
+    categories?: Array<{ id: string }>
+    reporting_category?: { id: string }
+  }
+  item_variation_data?: {
+    item_id: string
+    name: string
+  }
+  category_data?: {
+    name: string
+  }
+}
+
+export interface ListCatalogResponse {
+  objects?: CatalogObject[]
+  cursor?: string
+  errors?: SquareApiErrorItem[]
+}
+
+// ─── Errors ──────────────────────────────────────────────────────────────────
+
 export class SquareApiError extends Error {
   status: number
   errors: SquareApiErrorItem[]
