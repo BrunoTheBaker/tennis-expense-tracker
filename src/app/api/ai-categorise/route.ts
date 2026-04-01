@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { COST_CENTRES, COST_CENTRE_MAP, SQUARE_CATEGORY_MAP } from '@/lib/costCentres'
 import { suggestCostCentres, type CostCentreSuggestion } from '@/lib/categoriser'
+import type { Transaction } from '@/lib/financialData'
 
 const client = new Anthropic()
 
@@ -47,12 +48,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'description is required' }, { status: 400 })
   }
 
-  // Get keyword suggestions as baseline context for the model
-  const keywordSuggestions = suggestCostCentres({
+  const tx: Transaction = {
     description, amount, debit: 0, credit: amount,
     date: '', reference: '', status: 'pending',
     squareCategory, squareItemName,
-  })
+  }
+
+  // Get keyword suggestions as baseline context for the model
+  const keywordSuggestions = suggestCostCentres(tx)
     .map(s => s.costCentre.ledgerCode)
     .join(', ')
 
@@ -121,11 +124,7 @@ Rules:
     const message = err instanceof Error ? err.message : String(err)
     console.error('[/api/ai-categorise]', message)
     // Graceful degradation: return keyword suggestions
-    const fallback = suggestCostCentres({
-      description, amount, debit: 0, credit: amount,
-      date: '', reference: '', status: 'pending',
-      squareCategory, squareItemName,
-    })
+    const fallback = suggestCostCentres(tx)
     return NextResponse.json({ suggestions: fallback, _fallback: true })
   }
 }

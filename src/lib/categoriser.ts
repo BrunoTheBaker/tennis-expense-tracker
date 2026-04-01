@@ -87,7 +87,7 @@ export function suggestCostCentres(transaction: Transaction): CostCentreSuggesti
 
 // ─── AI suggestions (via route handler) ──────────────────────────────────────
 
-export interface AiCategoriseRequest {
+interface AiCategoriseRequest {
   description: string
   amount: number
   source?: string
@@ -102,9 +102,12 @@ export interface AiCategoriseRequest {
 export async function aiSuggestCostCentres(
   transaction: Transaction
 ): Promise<CostCentreSuggestion[]> {
-  // If squareCategory maps directly, skip the AI call — we already have a high-confidence answer
-  if (transaction.squareCategory && SQUARE_CATEGORY_MAP[transaction.squareCategory]) {
-    return suggestCostCentres(transaction)
+  // If squareCategory maps directly to a resolvable cost centre, skip the AI call
+  if (transaction.squareCategory) {
+    const ledgerCode = SQUARE_CATEGORY_MAP[transaction.squareCategory]
+    if (ledgerCode && COST_CENTRE_MAP.get(ledgerCode)) {
+      return suggestCostCentres(transaction)
+    }
   }
 
   const req: AiCategoriseRequest = {
