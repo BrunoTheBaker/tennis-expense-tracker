@@ -1,14 +1,12 @@
 import ReckonIntegration from '@/components/settings/ReckonIntegration'
+import SquareIntegration from '@/components/settings/SquareIntegration'
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-1)' }}>Settings</h1>
       <ReckonIntegration />
-      <DisabledSection
-        title="Square POS"
-        description="Square API integration coming soon. Use CSV upload on the Allocation tab for now."
-      />
+      <SquareIntegration />
       <DisabledSection
         title="Stripe"
         description="Stripe API integration coming soon. Use CSV upload on the Allocation tab for now."

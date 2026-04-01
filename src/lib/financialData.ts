@@ -271,3 +271,39 @@ export async function getFinancialData(periodKey: string): Promise<FinancialPeri
   const key = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
   return PERIODS[key] ?? null
 }
+
+// ─── Square integration ───────────────────────────────────────────────────────
+
+/** Returns true when SQUARE_ACCESS_TOKEN is set to a non-placeholder value. */
+export function isSquareConfigured(): boolean {
+  const token = process.env.SQUARE_ACCESS_TOKEN
+  return !!token && token !== 'YOUR_PRODUCTION_ACCESS_TOKEN'
+}
+
+/**
+ * Fetch Square payments for a date range via the server-side proxy route.
+ * Returns [] with a console.warn if Square is not configured.
+ */
+export async function getSquareTransactions(
+  from: string,
+  to: string
+): Promise<Transaction[]> {
+  if (!isSquareConfigured()) {
+    console.warn('[getSquareTransactions] SQUARE_ACCESS_TOKEN not configured — skipping')
+    return []
+  }
+
+  try {
+    const params = new URLSearchParams({ from, to })
+    const res = await fetch(`/api/square/payments?${params}`)
+    if (!res.ok) {
+      console.warn('[getSquareTransactions] API error', res.status)
+      return []
+    }
+    const data = await res.json() as Transaction[]
+    return data
+  } catch (err) {
+    console.warn('[getSquareTransactions] fetch failed:', err)
+    return []
+  }
+}
