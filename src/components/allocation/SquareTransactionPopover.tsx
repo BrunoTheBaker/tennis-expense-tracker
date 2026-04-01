@@ -8,21 +8,6 @@ interface Props {
   allTransactions: Transaction[]
 }
 
-/** Formats DD/MM/YYYY + time from ISO string (Perth AWST = UTC+8) */
-function formatDateTime(iso: string | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  // Offset by +8 hours for Perth time
-  const perth = new Date(d.getTime() + 8 * 60 * 60 * 1000)
-  const day = perth.toLocaleDateString('en-AU', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
-  })
-  const time = perth.toLocaleTimeString('en-AU', {
-    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC'
-  })
-  return `${day} ${time}`
-}
-
 export default function SquareTransactionPopover({ transaction, allTransactions }: Props) {
   const siblings = getOrderSiblings(transaction, allTransactions)
   const orderItems = [transaction, ...siblings].sort((a, b) => a.description.localeCompare(b.description))
@@ -31,7 +16,7 @@ export default function SquareTransactionPopover({ transaction, allTransactions 
 
   return (
     <div
-      className="card absolute left-full top-0 ml-2 z-50 shadow-lg"
+      className="absolute left-full top-0 ml-2 z-50 shadow-lg rounded-lg"
       style={{
         width: '300px',
         minWidth: '260px',
@@ -67,11 +52,11 @@ export default function SquareTransactionPopover({ transaction, allTransactions 
           </p>
           <div className="space-y-0.5">
             {orderItems.map((t, i) => (
-              <div key={i} className="flex justify-between">
+              <div key={t.squareItemId ?? t.description} className="flex justify-between">
                 <span style={{ color: 'var(--text-2)', fontSize: '12px' }} className="truncate mr-2">
                   {t.description}
                 </span>
-                <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-dm-mono)', fontSize: '12px' }} className="shrink-0">
+                <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: '12px' }} className="shrink-0">
                   ${t.amount.toFixed(2)}
                 </span>
               </div>
@@ -79,7 +64,7 @@ export default function SquareTransactionPopover({ transaction, allTransactions 
           </div>
           <div className="flex justify-between mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
             <span style={{ color: 'var(--text-3)', fontSize: '12px', fontWeight: 500 }}>Order total</span>
-            <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-dm-mono)', fontSize: '12px', fontWeight: 600 }}>
+            <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 600 }}>
               ${orderTotal.toFixed(2)}
             </span>
           </div>
@@ -97,7 +82,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
         style={{
           color: 'var(--text-1)',
           fontSize: '12px',
-          fontFamily: mono ? 'var(--font-dm-mono)' : undefined,
+          fontFamily: mono ? 'var(--font-mono)' : undefined,
           textAlign: 'right',
         }}
         className="truncate"
