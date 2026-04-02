@@ -28,8 +28,8 @@ export function getCachedPeriod(periodKey: string): PeriodCache | null {
 export function setCachedPeriod(cache: PeriodCache): void {
   try {
     storage()?.setItem(CACHE_PREFIX + cache.periodKey, JSON.stringify(cache))
-  } catch {
-    // sessionStorage quota exceeded — silently ignore
+  } catch (err) {
+    console.warn('[dataCache] sessionStorage write failed for period', cache.periodKey, err)
   }
 }
 

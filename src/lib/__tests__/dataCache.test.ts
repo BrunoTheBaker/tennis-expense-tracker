@@ -50,3 +50,29 @@ describe('active period key', () => {
     expect(getActivePeriodKey()).toBe('jan-2026')
   })
 })
+
+describe('when sessionStorage is unavailable', () => {
+  beforeEach(() => {
+    vi.stubGlobal('sessionStorage', undefined)
+  })
+
+  it('getCachedPeriod returns null without throwing', () => {
+    expect(getCachedPeriod('jan-2026')).toBeNull()
+  })
+
+  it('setCachedPeriod completes without throwing', () => {
+    expect(() => setCachedPeriod(SAMPLE)).not.toThrow()
+  })
+
+  it('clearCachedPeriod completes without throwing', () => {
+    expect(() => clearCachedPeriod('jan-2026')).not.toThrow()
+  })
+
+  it('getActivePeriodKey returns null without throwing', () => {
+    expect(getActivePeriodKey()).toBeNull()
+  })
+
+  it('setActivePeriodKey completes without throwing', () => {
+    expect(() => setActivePeriodKey('jan-2026')).not.toThrow()
+  })
+})
