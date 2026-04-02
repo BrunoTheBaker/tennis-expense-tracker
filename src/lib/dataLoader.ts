@@ -5,6 +5,7 @@ export interface LoadResult {
   sources: { square: boolean; reckon: boolean; stripe: boolean }
 }
 
+// TODO: update when financial year rolls over (currently Mar 2025 – Feb 2026)
 const FY_START = '2025-03-01T00:00:00Z'
 
 const MONTH_INDEX: Record<string, number> = {
@@ -20,10 +21,11 @@ export function periodToDateRange(periodKey: string): { from: string; to: string
   }
   const [mon, yr] = periodKey.split('-')
   const year = Number(yr)
-  const monthIndex = MONTH_INDEX[mon] ?? 0
-  // day 0 of next month = last day of this month
-  const lastDay = new Date(year, monthIndex + 1, 0)
-  lastDay.setHours(23, 59, 59, 999)
+  if (!mon || Number.isNaN(year) || !(mon in MONTH_INDEX)) {
+    throw new Error(`Unknown period key: "${periodKey}"`)
+  }
+  const monthIndex = MONTH_INDEX[mon]
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999))
   return { from: FY_START, to: lastDay.toISOString() }
 }
 

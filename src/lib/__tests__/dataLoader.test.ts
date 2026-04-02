@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { periodToDateRange, loadPeriodData } from '../dataLoader'
 import type { Transaction } from '@/lib/financialData'
 
@@ -29,11 +29,19 @@ describe('periodToDateRange', () => {
     const today = new Date().toISOString().slice(0, 10)
     expect(periodToDateRange('full-year').to).toMatch(new RegExp(`^${today}`))
   })
+
+  it('throws for unknown period key', () => {
+    expect(() => periodToDateRange('xyz-2026')).toThrow('Unknown period key: "xyz-2026"')
+  })
 })
 
 describe('loadPeriodData', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('deduplicates transactions with identical composite key', async () => {
