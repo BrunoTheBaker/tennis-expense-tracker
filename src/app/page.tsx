@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { PERIODS, LATEST_PERIOD_KEY, PERIOD_LABELS } from '@/lib/financialData'
 import { getCachedPeriod, setCachedPeriod, clearCachedPeriod, setActivePeriodKey } from '@/lib/dataCache'
 import { loadPeriodData } from '@/lib/dataLoader'
@@ -20,15 +20,20 @@ export default function DashboardPage() {
   const [periodKey, setPeriodKey] = useState<string>('full-year')
   const [isLoading, setIsLoading] = useState(false)
   const [cache, setCache] = useState<PeriodCache | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const loadGenRef = useRef(0)
 
   const resolvedKey = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
   const period = PERIODS[resolvedKey]
   const periodLabel = periodKey === 'full-year' ? 'Full Year 2025-26' : (PERIOD_LABELS[periodKey] ?? periodKey)
 
   const triggerLoad = useCallback(async (key: string) => {
+    const gen = ++loadGenRef.current
     setIsLoading(true)
+    setLoadError(null)
     try {
       const result = await loadPeriodData(key)
+      if (gen !== loadGenRef.current) return  // superseded by newer load
       const newCache: PeriodCache = {
         periodKey: key,
         transactions: result.transactions,
@@ -37,8 +42,13 @@ export default function DashboardPage() {
       }
       setCachedPeriod(newCache)
       setCache(newCache)
+    } catch (err) {
+      if (gen !== loadGenRef.current) return  // superseded
+      const msg = err instanceof Error ? err.message : 'Failed to load data'
+      setLoadError(msg)
+      console.error('[DashboardPage] loadPeriodData failed:', err)
     } finally {
-      setIsLoading(false)
+      if (gen === loadGenRef.current) setIsLoading(false)
     }
   }, [])
 
@@ -92,6 +102,12 @@ export default function DashboardPage() {
           onRefresh={handleRefresh}
           onClear={handleClear}
         />
+      )}
+
+      {loadError && (
+        <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+          Could not load live data: {loadError}
+        </p>
       )}
 
       {/* KPI row — static financial data, unchanged */}
