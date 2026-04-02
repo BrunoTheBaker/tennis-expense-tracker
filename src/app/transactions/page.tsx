@@ -9,7 +9,7 @@ import ReconciliationGate from '@/components/allocation/ReconciliationGate'
 import type { Transaction } from '@/lib/financialData'
 import type { CsvSource } from '@/lib/csvParser'
 import { serialiseToReckonCsv } from '@/lib/csvParser'
-import { getCachedPeriod, getActivePeriodKey } from '@/lib/dataCache'
+import { getCachedPeriod, getActivePeriodKey, clearCachedPeriod } from '@/lib/dataCache'
 import { PERIOD_LABELS } from '@/lib/financialData'
 
 export default function AllocationPage() {
@@ -24,6 +24,7 @@ export default function AllocationPage() {
     const cached = getCachedPeriod(periodKey)
     if (cached && cached.transactions.length > 0) {
       setTransactions(cached.transactions)
+      // TODO: derive from cached.sources when Reckon/Stripe cache writing is implemented
       setSource('square')
       const label = periodKey === 'full-year'
         ? 'Full Year 2025-26'
@@ -39,6 +40,9 @@ export default function AllocationPage() {
   }
 
   function handleReset() {
+    // Clear cache for active period so reload doesn't re-hydrate old data
+    const activePeriod = getActivePeriodKey()
+    if (activePeriod) clearCachedPeriod(activePeriod)
     setTransactions([])
     setSource(null)
     setCacheLabel(null)
