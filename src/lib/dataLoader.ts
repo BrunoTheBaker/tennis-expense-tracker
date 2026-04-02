@@ -57,8 +57,9 @@ async function fetchSquare(from: string, to: string): Promise<Transaction[]> {
 export async function loadPeriodData(periodKey: string): Promise<LoadResult> {
   const { from, to } = periodToDateRange(periodKey)
   const squareTxns = await fetchSquare(from, to)
+  const transactions = dedup(squareTxns)
   return {
-    transactions: dedup(squareTxns),
-    sources: { square: squareTxns.length > 0, reckon: false, stripe: false },
+    transactions,
+    sources: { square: transactions.length > 0, reckon: false, stripe: false },
   }
 }

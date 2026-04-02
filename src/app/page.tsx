@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
   const resolvedKey = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
   const period = PERIODS[resolvedKey]
-  const periodLabel = periodKey === 'full-year' ? 'Full Year 2025-26' : (PERIOD_LABELS[periodKey] ?? periodKey)
+  const periodLabel = PERIOD_LABELS[periodKey] ?? periodKey
 
   const triggerLoad = useCallback(async (key: string) => {
     const gen = ++loadGenRef.current

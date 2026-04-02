@@ -26,10 +26,7 @@ export default function AllocationPage() {
       setTransactions(cached.transactions)
       // TODO: derive from cached.sources when Reckon/Stripe cache writing is implemented
       setSource('square')
-      const label = periodKey === 'full-year'
-        ? 'Full Year 2025-26'
-        : (PERIOD_LABELS[periodKey] ?? periodKey)
-      setCacheLabel(label)
+      setCacheLabel(PERIOD_LABELS[periodKey] ?? periodKey)
     }
   }, [])
 

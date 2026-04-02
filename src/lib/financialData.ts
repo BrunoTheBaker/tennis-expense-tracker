@@ -217,6 +217,7 @@ export const PERIODS: Record<string, FinancialPeriod> = {
 }
 
 export const PERIOD_LABELS: Record<string, string> = {
+  'full-year': 'Full Year 2025-26',
   'jan-2026': 'January 2026',
   'dec-2025': 'December 2025',
 }

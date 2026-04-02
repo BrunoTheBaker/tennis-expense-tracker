@@ -19,7 +19,7 @@ export default function PeriodSelector({ value, onChange }: Props) {
         className="input-field"
         style={{ width: 'auto', minWidth: '200px' }}
       >
-        <option value="full-year">Full Year 2025-26</option>
+        <option value="full-year">{PERIOD_LABELS['full-year']}</option>
         {keys.map(key => (
           <option key={key} value={key}>{PERIOD_LABELS[key] ?? key}</option>
         ))}
