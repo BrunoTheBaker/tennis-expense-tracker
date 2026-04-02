@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CsvUpload } from '@/components/transactions/CsvUpload'
 import { ReviewTable } from '@/components/transactions/ReviewTable'
 import { ProgressBar } from '@/components/transactions/ProgressBar'
@@ -9,14 +9,39 @@ import ReconciliationGate from '@/components/allocation/ReconciliationGate'
 import type { Transaction } from '@/lib/financialData'
 import type { CsvSource } from '@/lib/csvParser'
 import { serialiseToReckonCsv } from '@/lib/csvParser'
+import { getCachedPeriod, getActivePeriodKey } from '@/lib/dataCache'
+import { PERIOD_LABELS } from '@/lib/financialData'
 
 export default function AllocationPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [source, setSource] = useState<CsvSource | null>(null)
+  const [cacheLabel, setCacheLabel] = useState<string | null>(null)
+
+  // On mount, hydrate from cache if available
+  useEffect(() => {
+    const periodKey = getActivePeriodKey()
+    if (!periodKey) return
+    const cached = getCachedPeriod(periodKey)
+    if (cached && cached.transactions.length > 0) {
+      setTransactions(cached.transactions)
+      setSource('square')
+      const label = periodKey === 'full-year'
+        ? 'Full Year 2025-26'
+        : (PERIOD_LABELS[periodKey] ?? periodKey)
+      setCacheLabel(label)
+    }
+  }, [])
 
   function handleLoaded(txns: Transaction[], src: CsvSource) {
     setTransactions(txns)
     setSource(src)
+    setCacheLabel(null)
+  }
+
+  function handleReset() {
+    setTransactions([])
+    setSource(null)
+    setCacheLabel(null)
   }
 
   function handleExport() {
@@ -25,7 +50,7 @@ export default function AllocationPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `sbtc-reconciled-${new Date().toISOString().slice(0,10)}.csv`
+    a.download = `sbtc-reconciled-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -35,7 +60,7 @@ export default function AllocationPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-1)' }}>Allocation</h1>
         <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-          Upload a CSV from Reckon, Square POS, or Stripe to begin allocating transactions.
+          Select a period on the Dashboard to load Square transactions, or upload a CSV from Reckon, Square POS, or Stripe below.
         </p>
         <CsvUpload onLoaded={handleLoaded} />
       </div>
@@ -52,11 +77,14 @@ export default function AllocationPage() {
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-1)' }}>Allocation</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-3)' }}>
             {transactions.length} transactions · source: <strong>{source}</strong>
+            {cacheLabel && (
+              <span> · period: <strong>{cacheLabel}</strong></span>
+            )}
           </p>
         </div>
         <div className="flex gap-3">
           <ExportButton transactions={transactions} />
-          <button onClick={() => { setTransactions([]); setSource(null) }} className="btn-secondary text-sm">
+          <button type="button" onClick={handleReset} className="btn-secondary text-sm">
             Upload new file
           </button>
         </div>
