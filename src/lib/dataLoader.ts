@@ -24,8 +24,9 @@ export function periodToDateRange(periodKey: string): { from: string; to: string
     return { from: FY_START, to: today.toISOString() }
   }
   const [mon, yr] = periodKey.split('-')
+  if (!(mon in MONTH_INDEX)) throw new Error(`Unknown period key: '${periodKey}'`)
   const year       = Number(yr)
-  const monthIndex = MONTH_INDEX[mon] ?? 0
+  const monthIndex = MONTH_INDEX[mon]
   // Day 0 of next month = last day of this month
   const lastDay = new Date(year, monthIndex + 1, 0)
   lastDay.setHours(23, 59, 59, 999)
@@ -53,8 +54,9 @@ async function fetchSquare(from: string, to: string): Promise<{ txns: Transactio
     const params = new URLSearchParams({ from, to })
     const res = await fetch(`/api/square/payments?${params}`)
     if (!res.ok) return { txns: [], status: 'error' }
-    const data = await res.json() as Transaction[]
-    return { txns: data, status: 'ok' }
+    const data = await res.json()
+    if (!Array.isArray(data)) return { txns: [], status: 'error' }
+    return { txns: data as Transaction[], status: 'ok' }
   } catch {
     return { txns: [], status: 'error' }
   }
