@@ -1,3 +1,5 @@
+import 'server-only'
+
 /**
  * OAuth 2.0 Authorization Code flow for Reckon One API v2.
  *

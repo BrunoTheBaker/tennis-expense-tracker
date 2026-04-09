@@ -249,31 +249,22 @@ export function getOrderedPeriodKeys(): string[] {
 // When Reckon credentials are configured this will switch to live API data;
 // until then it falls back to the static snapshots above.
 //
-// // TODO: RECKON API — implement live fetch from /api/reckon/* once credentials
-// arrive and the Reckon → FinancialPeriod mapping is confirmed.
+// TODO: RECKON API — implement live fetch via a server action once the
+// Reckon → FinancialPeriod mapping is confirmed.
+
+import { isReckonConfigured } from './reckon/config'
 
 export async function getFinancialData(periodKey: string): Promise<FinancialPeriod | null> {
-  // Dynamic import keeps the Reckon module server-side only in RSC contexts.
-  // In client components this falls back to static data (isReckonConfigured = false).
-  let configured = false
-  try {
-    const { isReckonConfigured } = await import('./reckon/index')
-    configured = isReckonConfigured()
-  } catch {
-    // reckon module not available on client — use static data
-  }
+  // isReckonConfigured() returns false in the browser (env vars not exposed to client)
+  // so this always falls back to static data when called from a client component.
+  const key = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
 
-  if (!configured) {
-    const key = periodKey === 'full-year'
-      ? (await import('./financialData')).LATEST_PERIOD_KEY
-      : periodKey
+  if (!isReckonConfigured()) {
     return PERIODS[key] ?? null
   }
 
-  // TODO: RECKON API — fetch live period data and map to FinancialPeriod shape.
-  // For now fall through to static data even when configured.
+  // TODO: RECKON API — fetch live period data via server action and map to FinancialPeriod shape.
   console.warn('[getFinancialData] Live Reckon fetch not yet implemented — using static data')
-  const key = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
   return PERIODS[key] ?? null
 }
 

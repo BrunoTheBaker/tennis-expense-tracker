@@ -1,3 +1,5 @@
+import 'server-only'
+
 /**
  * Typed fetch wrapper for the Reckon One v2 API.
  *

@@ -1,21 +1,9 @@
-export function isReckonConfigured(): boolean {
-  const id       = process.env.RECKON_CLIENT_ID
-  const secret   = process.env.RECKON_CLIENT_SECRET
-  const key      = process.env.RECKON_SUBSCRIPTION_KEY
-  const book     = process.env.RECKON_BOOK_ID
-  const redirect = process.env.RECKON_REDIRECT_URI
+/**
+ * Safe to import from client components.
+ * Does NOT re-export auth/client/api — those use node:fs and
+ * must only be imported in server components or route handlers.
+ * For server-only exports, import from '@/lib/reckon/server'.
+ */
 
-  return (
-    !!id       && id       !== 'YOUR_CLIENT_ID'        &&
-    !!secret   && secret   !== 'YOUR_CLIENT_SECRET'    &&
-    !!key      && key      !== 'YOUR_SUBSCRIPTION_KEY' &&
-    !!book     && book     !== 'YOUR_BOOK_ID'           &&
-    !!redirect
-  )
-}
-
-export * from './types'
-export * from './auth'
-export * from './api'
-export * from './transforms'
-export * from './mock'
+export { isReckonConfigured } from './config'
+export type * from './types'

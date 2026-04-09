@@ -1,3 +1,5 @@
+import 'server-only'
+
 /**
  * Typed wrappers for Reckon One v2 endpoints.
  *

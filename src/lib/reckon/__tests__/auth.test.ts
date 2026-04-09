@@ -9,7 +9,7 @@ import {
   getAuthenticatedAt,
   _resetTokenCache,
 } from '../auth'
-import { isReckonConfigured } from '../index'
+import { isReckonConfigured } from '../config'
 
 // Mock node:fs — no real file I/O in tests
 vi.mock('node:fs', () => ({
