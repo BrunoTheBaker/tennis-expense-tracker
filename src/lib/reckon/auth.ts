@@ -157,7 +157,7 @@ export function getAuthorizationUrl(): string {
   const params = new URLSearchParams({
     client_id:     clientId(),
     response_type: 'code',
-    scope:         'openid read write offline_access',
+    scope:         'openid read offline_access',
     redirect_uri:  redirectUri(),
     state,
     nonce,
