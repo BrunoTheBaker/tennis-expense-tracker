@@ -12,7 +12,7 @@
  *   ledger         → falls back to mock (legacy)
  *
  * Status responses:
- *   { status: 'not_configured' } — env vars not set
+ *   { data: [...], _mock: true } — env vars not set (mock data served)
  *   { status: 'auth_required'  } — treasurer has not authenticated
  *   { data: [...] }             — success
  */
@@ -84,6 +84,6 @@ export async function GET(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[/api/reckon/${endpoint}]`, message)
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json({ error: 'Reckon API unavailable' }, { status: 502 })
   }
 }
