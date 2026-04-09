@@ -5,9 +5,10 @@
  * in .env.local once credentials arrive.
  */
 
-const RECKON_CLIENT_ID     = process.env.RECKON_CLIENT_ID     ?? 'YOUR_CLIENT_ID'
-const RECKON_CLIENT_SECRET = process.env.RECKON_CLIENT_SECRET ?? 'YOUR_CLIENT_SECRET'
-export const RECKON_BOOK_ID = process.env.RECKON_BOOK_ID      ?? 'YOUR_BOOK_ID'
+const RECKON_CLIENT_ID       = process.env.RECKON_CLIENT_ID       ?? 'YOUR_CLIENT_ID'
+const RECKON_CLIENT_SECRET   = process.env.RECKON_CLIENT_SECRET   ?? 'YOUR_CLIENT_SECRET'
+export const RECKON_BOOK_ID  = process.env.RECKON_BOOK_ID         ?? 'YOUR_BOOK_ID'
+const RECKON_SUBSCRIPTION_KEY = process.env.RECKON_SUBSCRIPTION_KEY ?? ''
 
 export const RECKON_BASE_URL = 'https://api.reckonone.com/v2'
 const RECKON_TOKEN_URL       = 'https://identity.reckon.com/connect/token'
@@ -60,24 +61,47 @@ export async function getAccessToken(): Promise<string> {
 
 export interface ReckonClient {
   get<T>(endpoint: string): Promise<T>
+  post<T>(endpoint: string, body: unknown): Promise<T>
 }
 
 export async function createReckonClient(): Promise<ReckonClient> {
   const token = await getAccessToken()
 
+  function baseHeaders() {
+    const h: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      Accept:        'application/json',
+    }
+    if (RECKON_SUBSCRIPTION_KEY) {
+      h['Ocp-Apim-Subscription-Key'] = RECKON_SUBSCRIPTION_KEY
+    }
+    return h
+  }
+
   return {
     async get<T>(endpoint: string): Promise<T> {
       const url = `${RECKON_BASE_URL}${endpoint}`
+      const res = await fetch(url, { headers: baseHeaders() })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`Reckon API error (${res.status}) at GET ${endpoint}: ${text}`)
+      }
+
+      return res.json() as Promise<T>
+    },
+
+    async post<T>(endpoint: string, body: unknown): Promise<T> {
+      const url = `${RECKON_BASE_URL}${endpoint}`
       const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept:        'application/json',
-        },
+        method:  'POST',
+        headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
       })
 
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`Reckon API error (${res.status}) at ${endpoint}: ${text}`)
+        throw new Error(`Reckon API error (${res.status}) at POST ${endpoint}: ${text}`)
       }
 
       return res.json() as Promise<T>

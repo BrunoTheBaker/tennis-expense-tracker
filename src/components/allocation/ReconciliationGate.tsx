@@ -84,14 +84,15 @@ export default function ReconciliationGate({ transactions, onConfirm }: Props) {
               </div>
             </div>
 
-            <div className="text-sm p-3 rounded-lg mb-4" style={{ background: 'rgba(180,83,9,0.08)', color: 'var(--amber)' }}>
-              ⚠️ This will export a CSV for import into Reckon One. Review the file before importing.
+            <div className="text-sm p-3 rounded-lg mb-4" style={{ background: 'rgba(29,158,117,0.07)', color: 'var(--text-2)' }}>
+              Transactions with source <strong>reckon</strong> are already in Reckon and will be excluded from posting.
+              A CSV backup is downloaded automatically.
             </div>
 
             <div className="flex gap-3 justify-end">
               <button className="btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
               <button className="btn-primary" onClick={() => { setOpen(false); onConfirm() }}>
-                Confirm &amp; Export CSV
+                Post to Reckon One →
               </button>
             </div>
           </div>

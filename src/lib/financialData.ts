@@ -16,6 +16,13 @@ export interface Transaction {
   squareCategory?: string   // Square catalog category name e.g. 'Sunday Social'
   squareItemName?: string   // Square catalog item name e.g. 'Day Fee'
   squareItemId?: string     // Square catalog_object_id (variation ID)
+  // Split transactions (one transaction covers multiple cost centres)
+  isSplit?: boolean
+  splits?: Array<{ accountCode: string; amount: number }>
+  // Reckon post tracking
+  postedToReckon?: boolean
+  reckonId?: string
+  postError?: string
 }
 
 export interface PnLCategory {
