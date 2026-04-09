@@ -4,7 +4,7 @@
  * January-specific figures = JAN_2026 delta over DEC_2025.
  */
 
-import type { ReckonTransaction, Account, BankAccount, LedgerEntry } from './types'
+import type { ReckonJournalEntry, Account, BankAccount, LedgerEntry } from './types'
 
 // ─── Accounts — mirrors Master Chart of Accounts ──────────────────────────────
 
@@ -76,7 +76,7 @@ function line(
   return { id, accountId, accountCode: code, accountName: name, debit, credit, amount: credit - debit }
 }
 
-export const MOCK_TRANSACTIONS: ReckonTransaction[] = [
+export const MOCK_TRANSACTIONS: ReckonJournalEntry[] = [
   // ── Income ──
   {
     id: 'txn-j01', date: '2026-01-02', type: 'Receive',

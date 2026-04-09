@@ -28,6 +28,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# Reckon OAuth token cache (server-side only, never commit)
+.reckon-tokens.json
+
 # vercel
 .vercel
 

@@ -1,8 +1,5 @@
 /**
  * TypeScript interfaces for Reckon One API v2 response shapes.
- * Based on the Reckon One v2 Swagger spec at https://api-v2.reckonone.com/swagger/index.html
- *
- * // TODO: RECKON API — verify field names against live Swagger once credentials arrive.
  */
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
@@ -30,27 +27,46 @@ export type AccountType =
   | 'Expense'
   | 'CostOfSales'
 
+/** Raw account from Reckon chart of accounts endpoint. */
 export interface Account {
   id: string
-  code: string          // e.g. "4-0201"
-  name: string          // e.g. "Monday Social Tennis"
+  code: string
+  name: string
   type: AccountType
   isActive: boolean
   description?: string
 }
 
+/** Spec-aligned account type (used by api.ts getAccounts). */
+export interface ReckonAccount {
+  id: string
+  name: string
+  code: string
+  type: string
+  balance: number
+}
+
 // ─── Bank accounts ────────────────────────────────────────────────────────────
 
+/** Raw bank account from Reckon bank accounts endpoint. */
 export interface BankAccount {
   id: string
-  accountId: string     // links to Account.id
-  accountCode: string   // e.g. "1-1001"
-  name: string          // e.g. "Bank - Trading Account"
+  accountId: string
+  accountCode: string
+  name: string
   bankName?: string
   bsb?: string
   accountNumber?: string
   balance: number
-  currency: string      // "AUD"
+  currency: string
+}
+
+/** Spec-aligned bank balance type (used by api.ts getBankBalances). */
+export interface ReckonBankBalance {
+  id: string
+  name: string
+  balance: number
+  currency: string
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
@@ -61,16 +77,6 @@ export type TransactionType =
   | 'Transfer'
   | 'Journal'
 
-export interface ReckonTransaction {
-  id: string
-  date: string          // ISO 8601, e.g. "2026-01-15"
-  type: TransactionType
-  referenceNumber?: string
-  description: string
-  totalAmount: number   // positive for income, negative for expense
-  lines: TransactionLine[]
-}
-
 export interface TransactionLine {
   id: string
   accountId: string
@@ -79,20 +85,60 @@ export interface TransactionLine {
   description?: string
   debit: number
   credit: number
-  amount: number        // credit - debit
+  amount: number
+}
+
+/**
+ * Raw journal transaction from the Reckon API (has nested line items).
+ * Used by the mock data and the generic proxy route.
+ */
+export interface ReckonJournalEntry {
+  id: string
+  date: string
+  type: TransactionType
+  referenceNumber?: string
+  description: string
+  totalAmount: number
+  lines: TransactionLine[]
+}
+
+/**
+ * Flat ledger transaction — one line item per entry.
+ * This is the spec-defined shape returned by getLedgerTransactions()
+ * and the input type for reckonTransactionToTransaction().
+ */
+export interface ReckonTransaction {
+  id: string
+  transactionDate: string
+  description: string
+  amount: number
+  type: 'debit' | 'credit'
+  accountId: string
+  accountName: string
+  contactName?: string
+  reference?: string
+  memo?: string
 }
 
 // ─── Ledger entries ───────────────────────────────────────────────────────────
 
 export interface LedgerEntry {
   id: string
-  date: string          // ISO 8601
+  date: string
   description: string
   referenceNumber?: string
   accountId: string
-  accountCode: string   // e.g. "6-1402"
+  accountCode: string
   accountName: string
   debit: number
   credit: number
   runningBalance: number
+}
+
+// ─── P&L report ───────────────────────────────────────────────────────────────
+
+export interface ReckonPnL {
+  income:    { accountName: string; amount: number }[]
+  expenses:  { accountName: string; amount: number }[]
+  netProfit: number
 }
