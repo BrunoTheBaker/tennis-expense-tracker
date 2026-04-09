@@ -10,24 +10,18 @@ from the `PERIODS` registry. `getFinancialData()` has a TODO for live fetch — 
 
 ### Live Transaction Data (Square + Reckon → sessionStorage → Allocation)
 
-The Dashboard period selector is the single trigger for fetching live transaction data:
-
-1. User selects a period on the Dashboard (`src/app/page.tsx`)
-2. `dataLoader.ts → periodToDateRange()` converts the period key to a YTD ISO date range (always from `2025-03-01T00:00:00Z`)
-3. `dataLoader.ts → loadPeriodData()` calls `/api/square/payments` and `/api/reckon/transactions` in parallel
-4. Square route (`src/app/api/square/payments/route.ts`) calls Square Orders API → line items → `Transaction[]`
-5. Reckon route (`src/app/api/reckon/[endpoint]/route.ts`) calls `getLedgerTransactions()` → flat `ReckonTransaction[]` → mapped by `reckonTransactionToTransaction()` to `Transaction[]`
-6. Results are deduplicated (composite key: `date|description|amount|reference`) and written to `sessionStorage` via `dataCache.ts`
-7. The Allocation page reads the cache on mount
+The Dashboard period selector is the single trigger for fetching live transaction data.
+The Allocation page is a **cache consumer only** — it never fetches, only reads.
 
 ```
-Dashboard (period selector)
-       │ onChange
+Dashboard (src/app/page.tsx)
+  PeriodSelector onChange
+       │
        ▼
   dataLoader.ts
   periodToDateRange()  →  { from: '2025-03-01T00:00:00Z', to: '[end of period]' }
   loadPeriodData()     →  Promise.all([fetchSquare(), fetchReckon()])
-                          dedup
+                          dedup (key: date|description|amount|reference)
                           return LoadResult { transactions, sources }
        │
        ▼
@@ -35,11 +29,18 @@ Dashboard (period selector)
   setCachedPeriod()    →  sessionStorage['sbtc_cache_{period}']
   setActivePeriodKey() →  sessionStorage['sbtc_active_period']
        │
-       ▼
-  Allocation Page (on mount)
-  getActivePeriodKey() + getCachedPeriod()
-  → pre-populates ReviewTable
+       ▼  Dashboard shows: "{N} transactions loaded  Review in Allocation →"
+       │
+  Allocation Page (src/app/transactions/page.tsx)
+  on mount: getActivePeriodKey() + getCachedPeriod()
+  → pre-populates ReviewTable immediately (no fetch)
+  → CSV upload available as fallback / supplement (merges on top of live data)
 ```
+
+**Route details:**
+1. Square route (`src/app/api/square/payments/route.ts`) → Orders API → line items → `Transaction[]`
+2. Reckon route (`src/app/api/reckon/[endpoint]/route.ts`) → `getLedgerTransactions()` → `ReckonTransaction[]` → `reckonTransactionToTransaction()` → `Transaction[]`
+3. If Reckon not authenticated: `{ status: 'auth_required' }` — Allocation page shows connect prompt
 
 ### Reckon OAuth Integration (LIVE — April 2026)
 

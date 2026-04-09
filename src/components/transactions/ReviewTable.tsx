@@ -103,11 +103,15 @@ export function ReviewTable({ transactions, onChange }: Props) {
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{
                       background: t.source === 'square' ? 'rgba(29,158,117,0.1)' :
-                                  t.source === 'stripe' ? 'rgba(30,58,95,0.1)' : 'rgba(107,114,128,0.1)',
+                                  t.source === 'stripe' ? 'rgba(30,58,95,0.1)' :
+                                  t.source === 'reckon' ? '#e8edf5' : 'rgba(107,114,128,0.1)',
                       color: t.source === 'square' ? 'var(--brand)' :
-                             t.source === 'stripe' ? 'var(--nav)' : 'var(--text-3)',
+                             t.source === 'stripe' ? 'var(--nav)' :
+                             t.source === 'reckon' ? '#1e3a5f' : 'var(--text-3)',
                     }}>
-                      {t.source ?? 'reckon'}
+                      {t.source
+                        ? t.source.charAt(0).toUpperCase() + t.source.slice(1)
+                        : 'CSV'}
                     </span>
                   </td>
                   <td className="px-4 py-3">

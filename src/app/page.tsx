@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { PERIODS, LATEST_PERIOD_KEY } from '@/lib/financialData'
 import PeriodSelector from '@/components/dashboard/PeriodSelector'
 import KpiCards from '@/components/dashboard/KpiCards'
@@ -10,12 +11,43 @@ import CategoryPieChart from '@/components/dashboard/CategoryPieChart'
 import MonthlyTrendChart from '@/components/dashboard/MonthlyTrendChart'
 import QuickActions from '@/components/dashboard/QuickActions'
 import AiChatPlaceholder from '@/components/dashboard/AiChatPlaceholder'
+import { loadPeriodData } from '@/lib/dataLoader'
+import { setCachedPeriod, setActivePeriodKey } from '@/lib/dataCache'
 
 export default function DashboardPage() {
-  const [periodKey, setPeriodKey] = useState<string>('full-year')
+  const [periodKey,   setPeriodKey]   = useState<string>('full-year')
+  const [txnLoading,  setTxnLoading]  = useState(false)
+  const [txnCount,    setTxnCount]    = useState<number | null>(null)
 
   const resolvedKey = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
-  const period = PERIODS[resolvedKey]
+  const period      = PERIODS[resolvedKey]
+
+  // Load live transactions whenever the period changes
+  useEffect(() => {
+    let cancelled = false
+    setTxnLoading(true)
+    setTxnCount(null)
+
+    loadPeriodData(periodKey)
+      .then(result => {
+        if (cancelled) return
+        setCachedPeriod({
+          periodKey:    resolvedKey,
+          transactions: result.transactions,
+          loadedAt:     new Date().toISOString(),
+          sources:      result.sources,
+        })
+        setActivePeriodKey(resolvedKey)
+        setTxnCount(result.transactions.length)
+        setTxnLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setTxnLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [periodKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!period) {
     return (
@@ -34,6 +66,29 @@ export default function DashboardPage() {
         </h1>
         <PeriodSelector value={periodKey} onChange={setPeriodKey} />
       </div>
+
+      {/* Transaction loading status */}
+      {(txnLoading || txnCount !== null) && (
+        <div className="flex items-center gap-3 text-sm px-1" style={{ color: 'var(--text-3)' }}>
+          {txnLoading ? (
+            <>
+              <div
+                className="h-3 w-3 rounded-full border-2 animate-spin flex-shrink-0"
+                style={{ borderColor: 'var(--border)', borderTopColor: 'var(--brand)' }}
+              />
+              <span>Loading transactions…</span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: 'var(--brand)' }}>✓</span>
+              <span>{txnCount} transactions loaded</span>
+              <Link href="/transactions" className="underline hover:opacity-70" style={{ color: 'var(--brand)' }}>
+                Review in Allocation →
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
       {/* KPI row */}
       <KpiCards period={period} />
