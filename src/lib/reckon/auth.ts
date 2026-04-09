@@ -1,91 +1,229 @@
 /**
- * OAuth 2.0 client credentials flow for Reckon One API v2.
+ * OAuth 2.0 Authorization Code flow for Reckon One API v2.
  *
- * // TODO: RECKON API — set RECKON_CLIENT_ID, RECKON_CLIENT_SECRET, RECKON_BOOK_ID
- * in .env.local once credentials arrive.
+ * Flow:
+ *   1. Redirect treasurer to Reckon login: GET /api/reckon/auth
+ *      → calls getAuthorizationUrl() → redirect to identity.reckon.com
+ *   2. Reckon posts back: GET /api/reckon/callback?code=...&state=...
+ *      → validateState(state) + exchangeCodeForTokens(code)
+ *   3. Every subsequent API call: getAccessToken() auto-refreshes as needed
+ *
+ * Tokens are NEVER sent to the browser, stored in localStorage, or
+ * committed to git. In-memory cache is backed by .reckon-tokens.json.
  */
 
-const RECKON_CLIENT_ID     = process.env.RECKON_CLIENT_ID     ?? 'YOUR_CLIENT_ID'
-const RECKON_CLIENT_SECRET = process.env.RECKON_CLIENT_SECRET ?? 'YOUR_CLIENT_SECRET'
-export const RECKON_BOOK_ID = process.env.RECKON_BOOK_ID      ?? 'YOUR_BOOK_ID'
+import fs from 'node:fs'
+import path from 'node:path'
 
-export const RECKON_BASE_URL = 'https://api.reckonone.com/v2'
-const RECKON_TOKEN_URL       = 'https://identity.reckon.com/connect/token'
+const AUTH_URL   = 'https://identity.reckon.com/connect/authorize'
+const TOKEN_URL  = 'https://identity.reckon.com/connect/token'
+const TOKEN_FILE = path.join(process.cwd(), '.reckon-tokens.json')
 
-// ─── Token cache ──────────────────────────────────────────────────────────────
+// Read env vars lazily so tests can set them after import
+function clientId(): string     { return process.env.RECKON_CLIENT_ID      ?? '' }
+function clientSecret(): string { return process.env.RECKON_CLIENT_SECRET  ?? '' }
+function redirectUri(): string  { return process.env.RECKON_REDIRECT_URI   ?? '' }
 
-interface TokenCache {
-  accessToken: string
-  expiresAt: number   // unix ms
+function basicAuth(): string {
+  return Buffer.from(`${clientId()}:${clientSecret()}`).toString('base64')
 }
 
-let _tokenCache: TokenCache | null = null
+// ─── Token store ──────────────────────────────────────────────────────────────
 
-export async function getAccessToken(): Promise<string> {
-  const now = Date.now()
+interface StoredTokens {
+  accessToken:     string
+  refreshToken:    string
+  expiresAt:       number  // unix ms
+  authenticatedAt: string  // ISO 8601
+}
 
-  if (_tokenCache && _tokenCache.expiresAt > now + 30_000) {
-    return _tokenCache.accessToken
+let _tokens: StoredTokens | null = null
+let _pendingState: string | null = null
+
+// ─── File persistence ─────────────────────────────────────────────────────────
+
+function loadFromFile(): StoredTokens | null {
+  try {
+    if (!fs.existsSync(TOKEN_FILE)) return null
+    return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf-8')) as StoredTokens
+  } catch {
+    return null
   }
+}
+
+function saveToFile(tokens: StoredTokens): void {
+  try {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2), 'utf-8')
+  } catch {
+    // best-effort
+  }
+}
+
+function deleteFile(): void {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE)
+  } catch {
+    // best-effort
+  }
+}
+
+function ensureLoaded(): void {
+  if (_tokens === null) _tokens = loadFromFile()
+}
+
+// ─── Token refresh ────────────────────────────────────────────────────────────
+
+async function refreshTokens(): Promise<void> {
+  if (!_tokens?.refreshToken) throw new Error('No refresh token')
 
   const body = new URLSearchParams({
-    grant_type:    'client_credentials',
-    client_id:     RECKON_CLIENT_ID,
-    client_secret: RECKON_CLIENT_SECRET,
-    scope:         'reckon.one.api',
+    grant_type:    'refresh_token',
+    refresh_token: _tokens.refreshToken,
+    redirect_uri:  redirectUri(),
   })
 
-  const res = await fetch(RECKON_TOKEN_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    body.toString(),
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth()}`,
+    },
+    body: body.toString(),
   })
 
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Reckon auth failed (${res.status}): ${text}`)
+    throw new Error(`Reckon token refresh failed (${res.status}): ${text}`)
   }
 
-  const json = await res.json() as { access_token: string; expires_in: number }
-
-  _tokenCache = {
-    accessToken: json.access_token,
-    expiresAt:   now + json.expires_in * 1000,
+  const json = await res.json() as {
+    access_token: string
+    refresh_token?: string
+    expires_in: number
   }
 
-  return _tokenCache.accessToken
+  _tokens = {
+    accessToken:     json.access_token,
+    refreshToken:    json.refresh_token ?? _tokens.refreshToken,
+    expiresAt:       Date.now() + json.expires_in * 1000,
+    authenticatedAt: _tokens.authenticatedAt,
+  }
+  saveToFile(_tokens)
 }
 
-// ─── Typed client ─────────────────────────────────────────────────────────────
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-export interface ReckonClient {
-  get<T>(endpoint: string): Promise<T>
+/** True if we have a stored refresh token (treasurer has authenticated). */
+export function isAuthenticated(): boolean {
+  ensureLoaded()
+  return _tokens !== null && !!_tokens.refreshToken
 }
 
-export async function createReckonClient(): Promise<ReckonClient> {
-  const token = await getAccessToken()
+/** ISO 8601 timestamp of when the treasurer last authenticated, or null. */
+export function getAuthenticatedAt(): string | null {
+  ensureLoaded()
+  return _tokens?.authenticatedAt ?? null
+}
 
-  return {
-    async get<T>(endpoint: string): Promise<T> {
-      const url = `${RECKON_BASE_URL}${endpoint}`
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept:        'application/json',
-        },
-      })
+/**
+ * Returns a valid access token, refreshing if within 5 minutes of expiry.
+ * Throws if the treasurer has not yet authenticated.
+ */
+export async function getAccessToken(): Promise<string> {
+  ensureLoaded()
 
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`Reckon API error (${res.status}) at ${endpoint}: ${text}`)
-      }
+  if (!_tokens || !_tokens.refreshToken) {
+    throw new Error('Not authenticated. Visit /api/reckon/auth to connect Reckon One.')
+  }
 
-      return res.json() as Promise<T>
+  if (_tokens.expiresAt - Date.now() < 5 * 60 * 1000) {
+    await refreshTokens()
+  }
+
+  return _tokens!.accessToken
+}
+
+/**
+ * Builds the Reckon authorization URL and stores a CSRF state value.
+ * The state must be validated in the callback via validateState().
+ */
+export function getAuthorizationUrl(): string {
+  const state = crypto.randomUUID()
+  const nonce = crypto.randomUUID()
+  _pendingState = state
+
+  const params = new URLSearchParams({
+    client_id:     clientId(),
+    response_type: 'code',
+    scope:         'openid read write offline_access',
+    redirect_uri:  redirectUri(),
+    state,
+    nonce,
+  })
+
+  return `${AUTH_URL}?${params.toString()}`
+}
+
+/**
+ * Validates the state parameter from the OAuth callback (CSRF check).
+ * One-time use — the stored state is cleared regardless of result.
+ */
+export function validateState(state: string): boolean {
+  const ok = _pendingState !== null && _pendingState === state
+  _pendingState = null
+  return ok
+}
+
+/**
+ * Exchanges an authorization code for access + refresh tokens.
+ * Called from the callback route after Reckon redirects back.
+ */
+export async function exchangeCodeForTokens(code: string): Promise<void> {
+  const body = new URLSearchParams({
+    grant_type:   'authorization_code',
+    code,
+    redirect_uri: redirectUri(),
+  })
+
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth()}`,
     },
+    body: body.toString(),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Reckon token exchange failed (${res.status}): ${text}`)
   }
+
+  const json = await res.json() as {
+    access_token:  string
+    refresh_token: string
+    expires_in:    number
+  }
+
+  _tokens = {
+    accessToken:     json.access_token,
+    refreshToken:    json.refresh_token,
+    expiresAt:       Date.now() + json.expires_in * 1000,
+    authenticatedAt: new Date().toISOString(),
+  }
+
+  saveToFile(_tokens)
 }
 
-/** Resets the cached token — useful in tests. */
-export function _resetTokenCache() {
-  _tokenCache = null
+/** Clears all tokens (logout / force re-auth). */
+export function clearTokens(): void {
+  _tokens = null
+  _pendingState = null
+  deleteFile()
+}
+
+/** Resets in-memory state — used in tests only. */
+export function _resetTokenCache(): void {
+  _tokens = null
+  _pendingState = null
 }
