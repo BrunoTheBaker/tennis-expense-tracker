@@ -1,5 +1,7 @@
 import type { Transaction } from '@/lib/financialData'
 import type { SourceStatus } from './dataCache'
+import { periodToDateRange } from '@/lib/periods'
+
 
 export interface LoadResult {
   transactions: Transaction[]
@@ -8,29 +10,6 @@ export interface LoadResult {
     reckon: SourceStatus
     stripe: SourceStatus
   }
-}
-
-const FY_START = '2025-03-01T00:00:00Z'
-
-const MONTH_INDEX: Record<string, number> = {
-  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
-}
-
-export function periodToDateRange(periodKey: string): { from: string; to: string } {
-  if (periodKey === 'full-year') {
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    return { from: FY_START, to: today.toISOString() }
-  }
-  const [mon, yr] = periodKey.split('-')
-  if (!(mon in MONTH_INDEX)) throw new Error(`Unknown period key: '${periodKey}'`)
-  const year       = Number(yr)
-  const monthIndex = MONTH_INDEX[mon]
-  // Day 0 of next month = last day of this month
-  const lastDay = new Date(year, monthIndex + 1, 0)
-  lastDay.setHours(23, 59, 59, 999)
-  return { from: FY_START, to: lastDay.toISOString() }
 }
 
 function txKey(t: Transaction): string {

@@ -1,6 +1,6 @@
 'use client'
 
-import { getOrderedPeriodKeys, PERIOD_LABELS } from '@/lib/financialData'
+import { generatePeriodOptions } from '@/lib/periods'
 
 interface Props {
   value: string
@@ -8,7 +8,9 @@ interface Props {
 }
 
 export default function PeriodSelector({ value, onChange }: Props) {
-  const keys = getOrderedPeriodKeys()
+  const options = generatePeriodOptions()
+  const months  = options.filter(o => o.type === 'month')
+  const fyOpts  = options.filter(o => o.type === 'financial-year')
 
   return (
     <div className="flex items-center gap-3">
@@ -19,10 +21,16 @@ export default function PeriodSelector({ value, onChange }: Props) {
         className="input-field"
         style={{ width: 'auto', minWidth: '200px' }}
       >
-        <option value="full-year">Full Year 2025-26</option>
-        {keys.map(key => (
-          <option key={key} value={key}>{PERIOD_LABELS[key] ?? key}</option>
-        ))}
+        <optgroup label="Monthly">
+          {months.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </optgroup>
+        <optgroup label="Financial Year">
+          {fyOpts.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </optgroup>
       </select>
     </div>
   )

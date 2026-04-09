@@ -208,39 +208,28 @@ export const JAN_2026: FinancialPeriod = {
 
 // ─── Period registry ─────────────────────────────────────────────────────────
 // Add a new entry here each month after exporting from Reckon.
-// Keys format: 'mmm-yyyy' lowercase, e.g. 'feb-2026'
+// Keys format: 'YYYY-MM', e.g. '2026-02'
 // Values are YTD FinancialPeriod snapshots (1 March 2025 → end of month).
 
 export const PERIODS: Record<string, FinancialPeriod> = {
-  'jan-2026': JAN_2026,
-  'dec-2025': DEC_2025,
+  '2026-01': JAN_2026,
+  '2025-12': DEC_2025,
 }
 
 export const PERIOD_LABELS: Record<string, string> = {
-  'jan-2026': 'January 2026',
-  'dec-2025': 'December 2025',
+  '2026-01': 'January 2026',
+  '2025-12': 'December 2025',
 }
 
-/** The most recent period key — used as the "Full Year" default. */
-export const LATEST_PERIOD_KEY = 'jan-2026'
+/** The most recent period key with static data. */
+export const LATEST_PERIOD_KEY = '2026-01'
 
 /**
  * Returns period keys ordered most-recent first (for the dropdown).
- * Add entries to PERIODS above; this function needs no changes.
+ * YYYY-MM keys sort naturally — no custom comparator needed.
  */
 export function getOrderedPeriodKeys(): string[] {
-  // Month order within the FY (Mar=0 … Feb=11)
-  const FY_ORDER: Record<string, number> = {
-    mar: 0, apr: 1, may: 2, jun: 3, jul: 4, aug: 5,
-    sep: 6, oct: 7, nov: 8, dec: 9, jan: 10, feb: 11,
-  }
-  return Object.keys(PERIODS).sort((a, b) => {
-    const [aM, aY] = a.split('-')
-    const [bM, bY] = b.split('-')
-    const yearDiff = Number(bY) - Number(aY)
-    if (yearDiff !== 0) return yearDiff
-    return (FY_ORDER[bM] ?? 0) - (FY_ORDER[aM] ?? 0)
-  })
+  return Object.keys(PERIODS).sort().reverse()
 }
 
 // ─── Single seam for UI data fetching ────────────────────────────────────────
