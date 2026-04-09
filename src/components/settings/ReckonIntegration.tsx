@@ -10,8 +10,9 @@ interface ReckonStatus {
 }
 
 function ReckonIntegrationInner() {
-  const [status,  setStatus]  = useState<ReckonStatus | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [status,       setStatus]       = useState<ReckonStatus | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [disconnectErr, setDisconnectErr] = useState(false)
   const searchParams = useSearchParams()
 
   // Re-check status when the treasurer is redirected back after OAuth
@@ -20,14 +21,23 @@ function ReckonIntegrationInner() {
   useEffect(() => {
     setLoading(true)
     fetch('/api/reckon/status')
-      .then(r => r.json() as Promise<ReckonStatus>)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json() as Promise<ReckonStatus>
+      })
       .then(d  => { setStatus(d); setLoading(false) })
       .catch(() => { setStatus({ configured: false, connected: false, authenticatedAt: null }); setLoading(false) })
   }, [reckonParam])
 
   async function handleDisconnect() {
-    await fetch('/api/reckon/disconnect', { method: 'POST' })
-    setStatus(prev => prev ? { ...prev, connected: false, authenticatedAt: null } : null)
+    setDisconnectErr(false)
+    try {
+      const res = await fetch('/api/reckon/disconnect', { method: 'POST' })
+      if (!res.ok) { setDisconnectErr(true); return }
+      setStatus(prev => prev ? { ...prev, connected: false, authenticatedAt: null } : null)
+    } catch {
+      setDisconnectErr(true)
+    }
   }
 
   if (loading) {
@@ -99,6 +109,11 @@ function ReckonIntegrationInner() {
           )}
         </tbody>
       </table>
+      {disconnectErr && (
+        <p className="text-sm mb-2" style={{ color: '#dc2626' }}>
+          Disconnect failed. Please try again.
+        </p>
+      )}
       <button onClick={handleDisconnect} className="btn-secondary text-sm">
         Disconnect
       </button>
