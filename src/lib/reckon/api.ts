@@ -1,66 +1,65 @@
 /**
  * Typed wrappers for Reckon One v2 endpoints.
- * All functions return empty arrays (never throw) so the app degrades
- * gracefully when credentials are not yet configured.
  *
- * // TODO: RECKON API — verify endpoint paths against live Swagger once credentials arrive.
+ * Base URL (in client.ts): https://api.reckon.com/r1/v2/{bookId}
+ * All endpoint paths below are relative to that base.
+ *
+ * All functions catch errors, console.warn, and return [] or null so
+ * the app degrades gracefully when Reckon is unavailable.
+ *
+ * NOTE: Reckon v2 response shapes use `items` for list endpoints.
+ * If the live API uses a different key (e.g. `value` or `data`),
+ * update the extractItems() helper below.
  */
 
-import { createReckonClient, RECKON_BOOK_ID } from './auth'
-import type {
-  ReckonTransaction,
-  Account,
-  BankAccount,
-  LedgerEntry,
-  PagedResponse,
-} from './types'
+import { reckonFetch } from './client'
+import type { ReckonTransaction, ReckonAccount, ReckonBankBalance, ReckonPnL } from './types'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Response extraction ──────────────────────────────────────────────────────
 
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+/**
+ * Extracts item array from common Reckon v2 response shapes.
+ * Handles: { items: [...] }, { value: [...] }, { data: [...] }, or [...]
+ */
+function extractItems<T>(response: unknown): T[] {
+  if (Array.isArray(response)) return response as T[]
+  if (response && typeof response === 'object') {
+    const r = response as Record<string, unknown>
+    if (Array.isArray(r.items))  return r.items  as T[]
+    if (Array.isArray(r.value))  return r.value  as T[]
+    if (Array.isArray(r.data))   return r.data   as T[]
+  }
+  return []
 }
 
 // ─── API functions ────────────────────────────────────────────────────────────
 
 /**
- * Returns all transactions for a book within the given date range.
- * // TODO: RECKON API — confirm pagination behaviour and max page size.
+ * Returns ledger transactions for the given ISO 8601 date range.
+ * Uses OData $filter on transactionDate.
  */
-export async function getTransactions(
-  bookId: string = RECKON_BOOK_ID,
-  from: Date,
-  to: Date,
+export async function getLedgerTransactions(
+  from: string,
+  to: string,
 ): Promise<ReckonTransaction[]> {
   try {
-    const client = await createReckonClient()
-    const params = new URLSearchParams({
-      startDate: isoDate(from),
-      endDate:   isoDate(to),
-      pageSize:  '500',
-    })
-    const res = await client.get<PagedResponse<ReckonTransaction>>(
-      `/books/${bookId}/transactions?${params}`
-    )
-    return res.data
+    const filter = `transactionDate ge '${from}' and transactionDate le '${to}'`
+    const params = new URLSearchParams({ filter })
+    const res = await reckonFetch<unknown>(`/transactions?${params.toString()}`)
+    return extractItems<ReckonTransaction>(res)
   } catch (err) {
-    console.warn('[Reckon] getTransactions failed:', err)
+    console.warn('[Reckon] getLedgerTransactions failed:', err)
     return []
   }
 }
 
 /**
- * Returns the chart of accounts for a book.
+ * Returns the chart of accounts.
  */
-export async function getAccounts(
-  bookId: string = RECKON_BOOK_ID,
-): Promise<Account[]> {
+export async function getAccounts(): Promise<ReckonAccount[]> {
   try {
-    const client = await createReckonClient()
-    const res = await client.get<PagedResponse<Account>>(
-      `/books/${bookId}/accounts?pageSize=500`
-    )
-    return res.data
+    const res = await reckonFetch<unknown>('/ledgeraccounts')
+    return extractItems<ReckonAccount>(res)
   } catch (err) {
     console.warn('[Reckon] getAccounts failed:', err)
     return []
@@ -70,42 +69,30 @@ export async function getAccounts(
 /**
  * Returns bank/cash accounts with current balances.
  */
-export async function getBankAccounts(
-  bookId: string = RECKON_BOOK_ID,
-): Promise<BankAccount[]> {
+export async function getBankBalances(): Promise<ReckonBankBalance[]> {
   try {
-    const client = await createReckonClient()
-    const res = await client.get<PagedResponse<BankAccount>>(
-      `/books/${bookId}/bankaccounts?pageSize=100`
-    )
-    return res.data
+    const res = await reckonFetch<unknown>('/bankaccounts')
+    return extractItems<ReckonBankBalance>(res)
   } catch (err) {
-    console.warn('[Reckon] getBankAccounts failed:', err)
+    console.warn('[Reckon] getBankBalances failed:', err)
     return []
   }
 }
 
 /**
- * Returns general ledger detail entries for the given date range.
- * // TODO: RECKON API — confirm the ledger report endpoint path.
+ * Returns a Profit & Loss summary for the date range.
+ * Returns null on error rather than throwing.
  */
-export async function getLedgerReport(
-  bookId: string = RECKON_BOOK_ID,
-  from: Date,
-  to: Date,
-): Promise<LedgerEntry[]> {
+export async function getProfitAndLoss(
+  from: string,
+  to: string,
+): Promise<ReckonPnL | null> {
   try {
-    const client = await createReckonClient()
-    const params = new URLSearchParams({
-      startDate: isoDate(from),
-      endDate:   isoDate(to),
-    })
-    const res = await client.get<PagedResponse<LedgerEntry>>(
-      `/books/${bookId}/reports/generalledger?${params}`
-    )
-    return res.data
+    const params = new URLSearchParams({ startDate: from, endDate: to })
+    const res = await reckonFetch<ReckonPnL>(`/reports/profitandloss?${params.toString()}`)
+    return res
   } catch (err) {
-    console.warn('[Reckon] getLedgerReport failed:', err)
-    return []
+    console.warn('[Reckon] getProfitAndLoss failed:', err)
+    return null
   }
 }
