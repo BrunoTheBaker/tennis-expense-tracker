@@ -6,6 +6,7 @@ import {
   isAuthenticated,
   clearTokens,
   validateState,
+  getAuthenticatedAt,
   _resetTokenCache,
 } from '../auth'
 
@@ -182,5 +183,31 @@ describe('validateState', () => {
     const state = new URL(url).searchParams.get('state')!
     expect(validateState(state)).toBe(true)
     expect(validateState(state)).toBe(false)
+  })
+})
+
+// ─── getAuthenticatedAt ────────────────────────────────────────────────────────
+
+describe('getAuthenticatedAt', () => {
+  beforeEach(() => { _resetTokenCache(); vi.restoreAllMocks() })
+
+  it('returns null when not authenticated', () => {
+    expect(getAuthenticatedAt()).toBeNull()
+  })
+
+  it('returns ISO 8601 string after exchangeCodeForTokens', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse())
+    await exchangeCodeForTokens('auth-code-123')
+    const at = getAuthenticatedAt()
+    expect(at).not.toBeNull()
+    expect(typeof at).toBe('string')
+    expect(new Date(at!).getTime()).not.toBeNaN()
+  })
+
+  it('returns null after clearTokens', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse())
+    await exchangeCodeForTokens('auth-code-123')
+    clearTokens()
+    expect(getAuthenticatedAt()).toBeNull()
   })
 })
