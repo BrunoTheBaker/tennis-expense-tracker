@@ -10,7 +10,7 @@ import { isReckonConfigured } from '@/lib/reckon'
 export async function GET() {
   if (!isReckonConfigured()) {
     return NextResponse.json(
-      { error: 'Reckon credentials not configured in .env.local' },
+      { error: 'Reckon integration not configured' },
       { status: 503 }
     )
   }
