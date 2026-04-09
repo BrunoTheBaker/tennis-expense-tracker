@@ -3,21 +3,24 @@
  * Keeps credentials out of the browser — all Reckon requests must
  * go through this route handler.
  *
- * Usage: GET /api/reckon/<endpoint>?bookId=xxx&from=2025-03-01&to=2026-01-31
+ * Usage: GET /api/reckon/<endpoint>?from=2025-03-01&to=2026-01-31
  *
- * Supported endpoints (maps to api.ts functions):
- *   transactions   → getTransactions(bookId, from, to)
- *   accounts       → getAccounts(bookId)
- *   bankaccounts   → getBankAccounts(bookId)
- *   ledger         → getLedgerReport(bookId, from, to)
+ * Supported endpoints:
+ *   transactions   → getLedgerTransactions(from, to)
+ *   accounts       → getAccounts()
+ *   bankaccounts   → getBankBalances()
+ *   ledger         → falls back to mock (legacy)
  *
- * // TODO: RECKON API — add auth check (verify request is from our own app)
- * once the integration goes to production.
+ * Status responses:
+ *   { status: 'not_configured' } — env vars not set
+ *   { status: 'auth_required'  } — treasurer has not authenticated
+ *   { data: [...] }             — success
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { isReckonConfigured } from '@/lib/reckon'
-import { getTransactions, getAccounts, getBankAccounts, getLedgerReport } from '@/lib/reckon/api'
+import { isAuthenticated } from '@/lib/reckon/auth'
+import { getLedgerTransactions, getAccounts, getBankBalances } from '@/lib/reckon/api'
 import {
   MOCK_TRANSACTIONS,
   MOCK_ACCOUNTS,
@@ -30,16 +33,14 @@ export async function GET(
   { params }: { params: Promise<{ endpoint: string }> }
 ) {
   const { endpoint } = await params
-  const search = req.nextUrl.searchParams
-
-  const bookId = search.get('bookId') ?? undefined
+  const search  = req.nextUrl.searchParams
   const fromStr = search.get('from')
   const toStr   = search.get('to')
-  const from = fromStr ? new Date(fromStr) : new Date('2025-03-01')
-  const to   = toStr   ? new Date(toStr)   : new Date()
+  const from = fromStr ?? '2025-03-01'
+  const to   = toStr   ?? new Date().toISOString().slice(0, 10)
 
   if (!isReckonConfigured()) {
-    // Return mock data so the UI renders before credentials land
+    // Return mock data so the UI renders before credentials are set
     const mockData = {
       transactions: MOCK_TRANSACTIONS,
       accounts:     MOCK_ACCOUNTS,
@@ -54,21 +55,26 @@ export async function GET(
     return NextResponse.json({ data: mockData, _mock: true })
   }
 
+  if (!isAuthenticated()) {
+    return NextResponse.json({ status: 'auth_required', data: [] }, { status: 401 })
+  }
+
   try {
     let data: unknown
 
     switch (endpoint) {
       case 'transactions':
-        data = await getTransactions(bookId, from, to)
+        data = await getLedgerTransactions(from, to)
         break
       case 'accounts':
-        data = await getAccounts(bookId)
+        data = await getAccounts()
         break
       case 'bankaccounts':
-        data = await getBankAccounts(bookId)
+        data = await getBankBalances()
         break
       case 'ledger':
-        data = await getLedgerReport(bookId, from, to)
+        // Legacy — return mock until ledger report endpoint is confirmed
+        data = MOCK_LEDGER_ENTRIES
         break
       default:
         return NextResponse.json({ error: `Unknown endpoint: ${endpoint}` }, { status: 404 })
