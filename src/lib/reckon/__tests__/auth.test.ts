@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   getAccessToken,
   getAuthorizationUrl,
@@ -9,6 +9,7 @@ import {
   getAuthenticatedAt,
   _resetTokenCache,
 } from '../auth'
+import { isReckonConfigured } from '../index'
 
 // Mock node:fs — no real file I/O in tests
 vi.mock('node:fs', () => ({
@@ -209,5 +210,51 @@ describe('getAuthenticatedAt', () => {
     await exchangeCodeForTokens('auth-code-123')
     clearTokens()
     expect(getAuthenticatedAt()).toBeNull()
+  })
+})
+
+// ─── isReckonConfigured ───────────────────────────────────────────────────────────
+
+describe('isReckonConfigured', () => {
+  const savedEnv = { ...process.env }
+
+  afterEach(() => {
+    // restore original env after each test
+    for (const key of Object.keys(process.env)) {
+      if (!(key in savedEnv)) delete process.env[key]
+    }
+    Object.assign(process.env, savedEnv)
+  })
+
+  it('returns false when RECKON_CLIENT_ID is missing', () => {
+    delete process.env.RECKON_CLIENT_ID
+    expect(isReckonConfigured()).toBe(false)
+  })
+
+  it('returns false when RECKON_SUBSCRIPTION_KEY is missing', () => {
+    process.env.RECKON_CLIENT_ID     = 'real'
+    process.env.RECKON_CLIENT_SECRET = 'real'
+    process.env.RECKON_BOOK_ID       = 'real'
+    process.env.RECKON_REDIRECT_URI  = 'http://localhost:3000/api/reckon/callback'
+    delete process.env.RECKON_SUBSCRIPTION_KEY
+    expect(isReckonConfigured()).toBe(false)
+  })
+
+  it('returns false when any var is a placeholder', () => {
+    process.env.RECKON_CLIENT_ID         = 'YOUR_CLIENT_ID'
+    process.env.RECKON_CLIENT_SECRET     = 'real'
+    process.env.RECKON_SUBSCRIPTION_KEY  = 'real'
+    process.env.RECKON_BOOK_ID           = 'real'
+    process.env.RECKON_REDIRECT_URI      = 'http://localhost:3000/api/reckon/callback'
+    expect(isReckonConfigured()).toBe(false)
+  })
+
+  it('returns true when all 5 vars are set to real non-placeholder values', () => {
+    process.env.RECKON_CLIENT_ID         = 'real-client'
+    process.env.RECKON_CLIENT_SECRET     = 'real-secret'
+    process.env.RECKON_SUBSCRIPTION_KEY  = 'real-key'
+    process.env.RECKON_BOOK_ID           = 'real-book'
+    process.env.RECKON_REDIRECT_URI      = 'http://localhost:3000/api/reckon/callback'
+    expect(isReckonConfigured()).toBe(true)
   })
 })
