@@ -30,7 +30,12 @@ export function getCachedPeriod(periodKey: string): PeriodCache | null {
   const raw = storage()?.getItem(CACHE_PREFIX + periodKey) ?? null
   if (!raw) return null
   try {
-    return JSON.parse(raw) as PeriodCache
+    const parsed = JSON.parse(raw)
+    if (
+      typeof parsed !== 'object' || parsed === null ||
+      !('periodKey' in parsed) || !('sources' in parsed) || !('transactions' in parsed)
+    ) return null
+    return parsed as PeriodCache
   } catch {
     return null
   }

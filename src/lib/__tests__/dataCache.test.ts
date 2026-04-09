@@ -40,6 +40,14 @@ describe('getCachedPeriod', () => {
     clearCachedPeriod('jan-2026')
     expect(getCachedPeriod('jan-2026')).toBeNull()
   })
+  it('returns null when stored value is malformed JSON', () => {
+    store['sbtc_cache_jan-2026'] = '{not valid json'
+    expect(getCachedPeriod('jan-2026')).toBeNull()
+  })
+  it('returns null when stored value is valid JSON but missing required fields', () => {
+    store['sbtc_cache_jan-2026'] = '{"periodKey":"jan-2026"}'
+    expect(getCachedPeriod('jan-2026')).toBeNull()
+  })
 })
 
 describe('active period key', () => {
