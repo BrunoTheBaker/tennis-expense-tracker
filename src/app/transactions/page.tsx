@@ -5,7 +5,7 @@ import { CsvUpload } from '@/components/transactions/CsvUpload'
 import { ReviewTable } from '@/components/transactions/ReviewTable'
 import { ProgressBar } from '@/components/transactions/ProgressBar'
 import { ExportButton } from '@/components/transactions/ExportButton'
-import ReconciliationGate from '@/components/allocation/ReconciliationGate'
+import AllocationGate from '@/components/allocation/AllocationGate'
 import ReckonPostModal from '@/components/ReckonPostModal'
 import RetryQueuePanel, { RetryQueueBanner } from '@/components/RetryQueuePanel'
 import type { Transaction } from '@/lib/financialData'
@@ -95,8 +95,8 @@ export default function AllocationPage() {
       {/* Transactions table — shows "Posted" badge for postedToReckon === true */}
       <ReviewTable transactions={transactions} onChange={setTransactions} />
 
-      {/* Reconciliation gate → opens ReckonPostModal instead of direct CSV */}
-      <ReconciliationGate
+      {/* Allocation gate — all transactions must have a cost centre before posting */}
+      <AllocationGate
         transactions={transactions}
         onConfirm={() => setShowPostModal(true)}
       />

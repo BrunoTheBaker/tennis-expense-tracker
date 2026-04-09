@@ -13,7 +13,7 @@ function fmt(n: number) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(n)
 }
 
-export default function ReconciliationGate({ transactions, onConfirm }: Props) {
+export default function AllocationGate({ transactions, onConfirm }: Props) {
   const [open, setOpen] = useState(false)
 
   const confirmed = transactions.filter(t => t.status === 'confirmed')
@@ -42,9 +42,9 @@ export default function ReconciliationGate({ transactions, onConfirm }: Props) {
           className="btn-primary"
           disabled={!allDone}
           onClick={() => setOpen(true)}
-          title={!allDone ? `${pending.length} transactions still pending review` : undefined}
+          title={!allDone ? `${pending.length} transactions still need a cost centre` : undefined}
         >
-          Reconcile &amp; Push to Reckon
+          Review &amp; Post
         </button>
       </div>
 
@@ -60,10 +60,10 @@ export default function ReconciliationGate({ transactions, onConfirm }: Props) {
             onClick={e => e.stopPropagation()}
           >
             <h2 className="font-semibold text-lg mb-1" style={{ color: 'var(--text-1)' }}>
-              Confirm Reconciliation
+              Confirm Allocation
             </h2>
             <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-              You are about to push <strong>{confirmed.length} transactions</strong> to Reckon One.
+              You are about to post <strong>{confirmed.length} transactions</strong> to Reckon One.
               {skipped.length > 0 && ` ${skipped.length} skipped transactions will not be affected.`}
             </p>
 

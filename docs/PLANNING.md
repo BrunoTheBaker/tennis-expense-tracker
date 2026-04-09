@@ -1,5 +1,18 @@
 # SBTC Treasury App — Planning
 
+## Terminology
+
+| Term | Meaning |
+|------|---------|
+| **Allocation / coding** | Assigning a cost centre (Reckon account code) to a transaction. This is what this app does. |
+| **Bank reconciliation** | Matching bank statement transactions against the accounting system. This happens inside Reckon One — out of scope for this app. |
+| **Posted** | A transaction that has been sent to Reckon One via the API. |
+| **Unallocated** | A transaction with no cost centre assigned yet. |
+
+> **Note on naming:** Earlier versions of this app used the word "reconcile" for the allocation step. This was incorrect — reconciliation in accounting means matching bank statements to the ledger, which Reckon One handles. The correct terms are *allocate* (assign a cost centre) and *post* (send to Reckon One).
+
+---
+
 ## Architecture
 
 Next.js 14 App Router · TypeScript · Tailwind CSS · Vitest
@@ -13,7 +26,7 @@ src/
     api/reckon/
       post-transactions/      # POST /api/reckon/post-transactions
   components/
-    allocation/               # ReconciliationGate, CostCentrePicker
+    allocation/               # AllocationGate, CostCentrePicker
     ReckonPostModal.tsx        # 3-screen post + progress modal
     RetryQueuePanel.tsx        # Retry queue table + banner
   lib/
@@ -37,7 +50,7 @@ src/
 Upload CSV
   → parse (Reckon / Square / Stripe)
   → review in table (confirm / skip / reassign cost centre)
-  → ReconciliationGate (all transactions resolved)
+  → AllocationGate (all transactions must have a cost centre assigned)
     → ReckonPostModal — Summary screen
         shows: transaction count, total value, period,
                breakdown by source + top 5 cost centres
