@@ -1,123 +1,189 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getAccessToken, _resetTokenCache } from '../auth'
-import { isReckonConfigured } from '../index'
+import {
+  getAccessToken,
+  connectWithCredentials,
+  clearTokens,
+  getSessionStatus,
+  INACTIVITY_TIMEOUT_MS,
+  _resetTokenStore,
+} from '../auth'
+import { ReckonAuthError } from '../ReckonAuthError'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function mockFetchToken(accessToken = 'test-token-123', expiresIn = 3600) {
+function mockSuccessfulConnect(expiresIn = 3600) {
   return vi.fn().mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ access_token: accessToken, expires_in: expiresIn }),
+    ok:   true,
+    json: async () => ({ access_token: 'test-token', expires_in: expiresIn }),
     text: async () => '',
   })
 }
 
-// ─── getAccessToken ───────────────────────────────────────────────────────────
+// ─── Setup ────────────────────────────────────────────────────────────────────
 
-describe('getAccessToken', () => {
-  beforeEach(() => {
-    _resetTokenCache()
-    vi.restoreAllMocks()
+beforeEach(() => {
+  _resetTokenStore()
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+// ── 1. getAccessToken() throws INACTIVITY_TIMEOUT after 5 min ─────────────────
+
+describe('getAccessToken — inactivity timeout', () => {
+  it('throws INACTIVITY_TIMEOUT when lastActivity is more than 5 minutes ago', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
+
+    // Advance time past the inactivity threshold
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1)
+
+    // Single call — first call throws + clears the store; a second call would give NOT_AUTHENTICATED
+    await expect(getAccessToken()).rejects.toMatchObject({ code: 'INACTIVITY_TIMEOUT', name: 'ReckonAuthError' })
   })
 
-  it('fetches a token on first call', async () => {
-    const fetchMock = mockFetchToken('first-token')
-    vi.stubGlobal('fetch', fetchMock)
+  it('does NOT throw before the inactivity threshold', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
 
-    const token = await getAccessToken()
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS - 1000)  // just under 5 min
 
-    expect(token).toBe('first-token')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('identity.reckon.com'),
-      expect.objectContaining({ method: 'POST' })
-    )
-  })
-
-  it('returns cached token on second call without re-fetching', async () => {
-    const fetchMock = mockFetchToken('cached-token')
-    vi.stubGlobal('fetch', fetchMock)
-
-    const first  = await getAccessToken()
-    const second = await getAccessToken()
-
-    expect(first).toBe('cached-token')
-    expect(second).toBe('cached-token')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('re-fetches when cached token is expired', async () => {
-    // First fetch — token expires in 1 second (effectively immediately)
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: 'old-token', expires_in: 0 }),
-        text: async () => '',
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: 'new-token', expires_in: 3600 }),
-        text: async () => '',
-      })
-    vi.stubGlobal('fetch', fetchMock)
-
-    await getAccessToken()        // populates cache with expiresAt ≈ now
-    const second = await getAccessToken()  // should detect expiry and re-fetch
-
-    expect(second).toBe('new-token')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('throws when the auth endpoint returns an error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () => 'Unauthorized',
-    }))
-
-    await expect(getAccessToken()).rejects.toThrow('Reckon auth failed (401)')
+    await expect(getAccessToken()).resolves.toBe('test-token')
   })
 })
 
-// ─── isReckonConfigured ───────────────────────────────────────────────────────
+// ── 2. getAccessToken() throws TOKEN_EXPIRED when past expiry ─────────────────
 
-describe('isReckonConfigured', () => {
-  const originalEnv = { ...process.env }
+describe('getAccessToken — token expiry', () => {
+  it('throws TOKEN_EXPIRED when access token is past its expiry time', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect(0))  // expires immediately
+    await connectWithCredentials()
 
-  afterEach(() => {
-    Object.assign(process.env, originalEnv)
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(1000)  // past expiry
+
+    await expect(getAccessToken()).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
+  })
+})
+
+// ── 3. getAccessToken() updates lastActivity on each valid call ───────────────
+
+describe('getAccessToken — updates lastActivity', () => {
+  it('updates lastActivity so the inactivity timer resets on each call', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
+
+    vi.useFakeTimers()
+
+    // Advance to just under 5 min, call getAccessToken to reset timer
+    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS - 5000)
+    await getAccessToken()
+
+    // Advance another 4 minutes — total 9 min since connect, but only 4 since last call
+    vi.advanceTimersByTime(4 * 60 * 1000)
+
+    // Should still be valid because lastActivity was updated
+    await expect(getAccessToken()).resolves.toBe('test-token')
+  })
+})
+
+// ── 4. clearTokens() sets tokenStore to null ──────────────────────────────────
+
+describe('clearTokens', () => {
+  it('sets the token store to null so the next call throws NOT_AUTHENTICATED', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
+
+    // Verify connected
+    await expect(getAccessToken()).resolves.toBe('test-token')
+
+    clearTokens()
+
+    // Now it should throw
+    await expect(getAccessToken()).rejects.toMatchObject({ code: 'NOT_AUTHENTICATED' })
+  })
+})
+
+// ── 5. getSessionStatus() returns correct minutesRemaining ────────────────────
+
+describe('getSessionStatus', () => {
+  it('returns authenticated: false when not connected', () => {
+    const status = getSessionStatus()
+    expect(status.authenticated).toBe(false)
+    expect(status.minutesRemaining).toBeNull()
+    expect(status.minutesSinceActivity).toBeNull()
   })
 
-  it('returns false when all vars are placeholder values', () => {
-    process.env.RECKON_CLIENT_ID     = 'YOUR_CLIENT_ID'
-    process.env.RECKON_CLIENT_SECRET = 'YOUR_CLIENT_SECRET'
-    process.env.RECKON_BOOK_ID       = 'YOUR_BOOK_ID'
+  it('returns correct minutesRemaining after connecting', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect(3600))  // 1 hour token
+    await connectWithCredentials()
 
-    expect(isReckonConfigured()).toBe(false)
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(2 * 60 * 1000)  // 2 minutes pass
+
+    const status = getSessionStatus()
+    expect(status.authenticated).toBe(true)
+    // 3 minutes remaining until inactivity timeout (5 min - 2 min elapsed)
+    expect(status.minutesRemaining).toBe(3)
+    expect(status.minutesSinceActivity).toBe(2)
   })
 
-  it('returns false when vars are not set', () => {
-    delete process.env.RECKON_CLIENT_ID
-    delete process.env.RECKON_CLIENT_SECRET
-    delete process.env.RECKON_BOOK_ID
+  it('returns authenticated: false after inactivity expires', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
 
-    expect(isReckonConfigured()).toBe(false)
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1000)
+
+    const status = getSessionStatus()
+    expect(status.authenticated).toBe(false)
+  })
+})
+
+// ── 6. isInactive returns true after 5 min ────────────────────────────────────
+// Tested indirectly via getAccessToken and getSessionStatus above.
+// This test validates the boundary explicitly.
+
+describe('inactivity boundary', () => {
+  it('session is invalid one millisecond past INACTIVITY_TIMEOUT_MS', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect())
+    await connectWithCredentials()
+
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1)
+
+    await expect(getAccessToken()).rejects.toMatchObject({ code: 'INACTIVITY_TIMEOUT' })
+  })
+})
+
+// ── 7. exchangeCodeForTokens / connectWithCredentials does NOT store refresh token
+
+describe('connectWithCredentials — no refresh token stored', () => {
+  it('succeeds without a refresh_token in the response', async () => {
+    // Response has no refresh_token — should not throw or store it
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({ access_token: 'no-refresh-token', expires_in: 3600 }),
+      text: async () => '',
+    }))
+
+    await expect(connectWithCredentials()).resolves.toBeUndefined()
+    await expect(getAccessToken()).resolves.toBe('no-refresh-token')
   })
 
-  it('returns false when only some vars are real', () => {
-    process.env.RECKON_CLIENT_ID     = 'real-client-id'
-    process.env.RECKON_CLIENT_SECRET = 'YOUR_CLIENT_SECRET' // still placeholder
-    process.env.RECKON_BOOK_ID       = 'real-book-id'
+  it('throws NOT_AUTHENTICATED (not an auto-refresh) when token expires', async () => {
+    vi.stubGlobal('fetch', mockSuccessfulConnect(0))  // expires immediately
+    await connectWithCredentials()
 
-    expect(isReckonConfigured()).toBe(false)
-  })
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(1000)
 
-  it('returns true when all vars are real non-placeholder values', () => {
-    process.env.RECKON_CLIENT_ID     = 'real-client-id'
-    process.env.RECKON_CLIENT_SECRET = 'real-client-secret'
-    process.env.RECKON_BOOK_ID       = 'real-book-id'
-
-    expect(isReckonConfigured()).toBe(true)
+    // Must throw — no auto-refresh behaviour
+    await expect(getAccessToken()).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
   })
 })

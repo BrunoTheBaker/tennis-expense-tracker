@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { postTransactionBatch } from '@/lib/reckon/write'
+import { ReckonAuthError } from '@/lib/reckon/ReckonAuthError'
 import type { Transaction } from '@/lib/financialData'
 import type { PostResult } from '@/lib/reckon/write'
 
@@ -30,7 +31,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const results = await postTransactionBatch(transactions)
+  let results: PostResult[]
+  try {
+    results = await postTransactionBatch(transactions)
+  } catch (err) {
+    if (err instanceof ReckonAuthError) {
+      return NextResponse.json({ error: err.code }, { status: 401 })
+    }
+    throw err
+  }
 
   const succeeded = results.filter(r => r.status === 'success').length
   const failed    = results.filter(r => r.status === 'failed').length

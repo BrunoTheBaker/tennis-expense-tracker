@@ -49,10 +49,17 @@ src/
 ```
 Upload CSV
   → parse (Reckon / Square / Stripe)
-  → review in table (confirm / skip / reassign cost centre)
-  → AllocationGate (all transactions must have a cost centre assigned)
+  → review in sectioned table:
+      Green section  — Allocated (confirmed, ready to post)
+      Amber section  — Not yet allocated (pending, needs cost centre)
+      Grey section   — Skipped
+      Grey (dimmed)  — Posted (postedToReckon === true)
+  → AllocationGate — enabled as soon as ≥1 transaction is allocated
+      button shows count: "Post N →"
+      pending transactions do NOT block posting
     → ReckonPostModal — Summary screen
         shows: transaction count, total value, period,
+               two-bucket display (ready to post vs unallocated),
                breakdown by source + top 5 cost centres
     → Treasurer confirms → Posting screen
         sequential post (one-at-a-time, never parallel)
@@ -62,7 +69,8 @@ Upload CSV
     → Results screen
         success count + total
         failed count → retry queue stored in sessionStorage
-    → "Posted" badge applied to successful transactions in table
+    → "Posted ✓" badge applied to successful transactions in table
+    → Unallocated transactions remain in amber section
     → Failed transactions → RetryQueuePanel (sessionStorage)
 ```
 
@@ -84,6 +92,20 @@ Upload CSV
 - `RetryQueueBanner` reads queue on mount, shows count if non-empty
 - `RetryQueuePanel` shows table with Retry + Edit cost centre per row
 - `retryFailed()` clears `postedToReckon` flag before re-attempting
+
+---
+
+## Security
+
+| Behaviour | Implementation |
+|-----------|---------------|
+| Explicit connect required each session | `connectWithCredentials()` — not called automatically |
+| No refresh tokens | Access token only; refresh token discarded after OAuth exchange |
+| Tokens in memory only | No file, cookie, or localStorage storage |
+| 5-minute inactivity timeout | `isInactive()` check in `getAccessToken()` |
+| Active use extends session | `lastActivity` updated on every `getAccessToken()` call |
+| Mid-post interruption handled | `ReckonPostModal` pauses loop on 401, saves remaining to sessionStorage, resumes after re-auth |
+| Session timer in nav | `ReckonSessionTimer` polls `/api/reckon/session-status` every 30 s |
 
 ---
 

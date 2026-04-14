@@ -50,6 +50,10 @@ export default function AllocationPage() {
   const postable = transactions.filter(
     t => t.status === 'confirmed' && t.source !== 'reckon' && !t.postedToReckon
   )
+  // Pending, non-reckon transactions that still need a cost centre
+  const unallocated = transactions.filter(
+    t => t.status === 'pending' && t.source !== 'reckon' && !t.postedToReckon
+  )
 
   if (transactions.length === 0) {
     return (
@@ -106,6 +110,7 @@ export default function AllocationPage() {
         <ReckonPostModal
           transactions={postable}
           period={period}
+          unallocatedCount={unallocated.length}
           onClose={() => setShowPostModal(false)}
           onPosted={handlePosted}
         />

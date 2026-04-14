@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { PERIODS, LATEST_PERIOD_KEY } from '@/lib/financialData'
+import { PERIODS, emptyPeriod } from '@/lib/financialData'
+import { getCurrentPeriod } from '@/lib/periods'
 import PeriodSelector from '@/components/dashboard/PeriodSelector'
 import KpiCards from '@/components/dashboard/KpiCards'
 import BankBalances from '@/components/dashboard/BankBalances'
@@ -12,18 +13,9 @@ import QuickActions from '@/components/dashboard/QuickActions'
 import AiChatPlaceholder from '@/components/dashboard/AiChatPlaceholder'
 
 export default function DashboardPage() {
-  const [periodKey, setPeriodKey] = useState<string>('full-year')
+  const [periodKey, setPeriodKey] = useState<string>(getCurrentPeriod())
 
-  const resolvedKey = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
-  const period = PERIODS[resolvedKey]
-
-  if (!period) {
-    return (
-      <div className="card text-center py-12" style={{ color: 'var(--text-3)' }}>
-        No data available for this period yet.
-      </div>
-    )
-  }
+  const period = PERIODS[periodKey] ?? emptyPeriod()
 
   return (
     <div className="space-y-6">
@@ -49,8 +41,8 @@ export default function DashboardPage() {
         <CategoryPieChart period={period} mode="expense" />
       </div>
 
-      {/* Monthly trend — only on full year */}
-      {periodKey === 'full-year' && <MonthlyTrendChart />}
+      {/* Monthly trend — only on FY views */}
+      {periodKey.endsWith('-FY') && <MonthlyTrendChart />}
 
       {/* Bank balances + quick actions */}
       <div className="grid grid-cols-[1fr_400px] gap-4 items-start">

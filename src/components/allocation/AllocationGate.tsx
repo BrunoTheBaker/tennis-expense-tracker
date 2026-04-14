@@ -16,13 +16,15 @@ function fmt(n: number) {
 export default function AllocationGate({ transactions, onConfirm }: Props) {
   const [open, setOpen] = useState(false)
 
-  const confirmed = transactions.filter(t => t.status === 'confirmed')
-  const skipped   = transactions.filter(t => t.status === 'skipped')
-  const pending   = transactions.filter(t => t.status === 'pending')
-  const allDone   = pending.length === 0
+  const confirmed    = transactions.filter(t => t.status === 'confirmed')
+  const skipped      = transactions.filter(t => t.status === 'skipped')
+  const pending      = transactions.filter(t => t.status === 'pending')
+  // Ready = confirmed, non-reckon, not already posted
+  const readyToPost  = confirmed.filter(t => t.source !== 'reckon' && !t.postedToReckon)
+  const canPost      = readyToPost.length > 0
 
-  // Group confirmed by account code
-  const byCode = confirmed.reduce<Record<string, { name: string; total: number }>>((acc, t) => {
+  // Group ready-to-post by account code for the breakdown
+  const byCode = readyToPost.reduce<Record<string, { name: string; total: number }>>((acc, t) => {
     const code = t.accountCode ?? 'unassigned'
     const name = accounts.find(a => a.code === code)?.name ?? code
     if (!acc[code]) acc[code] = { name, total: 0 }
@@ -30,21 +32,21 @@ export default function AllocationGate({ transactions, onConfirm }: Props) {
     return acc
   }, {})
 
-  const grandTotal = confirmed.reduce((s, t) => s + t.amount, 0)
+  const grandTotal = readyToPost.reduce((s, t) => s + t.amount, 0)
 
   return (
     <>
       <div className="card flex items-center justify-between">
         <div className="text-sm" style={{ color: 'var(--text-2)' }}>
-          {confirmed.length} confirmed · {skipped.length} skipped · {pending.length} pending
+          {confirmed.length} allocated · {pending.length} unallocated · {skipped.length} skipped
         </div>
         <button
           className="btn-primary"
-          disabled={!allDone}
+          disabled={!canPost}
           onClick={() => setOpen(true)}
-          title={!allDone ? `${pending.length} transactions still need a cost centre` : undefined}
+          title={!canPost ? 'Allocate at least one transaction before posting' : undefined}
         >
-          Review &amp; Post
+          Post {readyToPost.length} →
         </button>
       </div>
 
@@ -63,8 +65,11 @@ export default function AllocationGate({ transactions, onConfirm }: Props) {
               Confirm Allocation
             </h2>
             <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-              You are about to post <strong>{confirmed.length} transactions</strong> to Reckon One.
-              {skipped.length > 0 && ` ${skipped.length} skipped transactions will not be affected.`}
+              <strong>{readyToPost.length} transaction{readyToPost.length !== 1 ? 's' : ''}</strong> will be posted to Reckon One.
+              {pending.length > 0 && (
+                <span> <strong>{pending.length} unallocated</strong> transaction{pending.length !== 1 ? 's' : ''} will not be included — you can post them later.</span>
+              )}
+              {skipped.length > 0 && ` ${skipped.length} skipped transaction${skipped.length !== 1 ? 's' : ''} will not be affected.`}
             </p>
 
             {/* Breakdown */}
@@ -83,6 +88,12 @@ export default function AllocationGate({ transactions, onConfirm }: Props) {
                 <span className="font-mono" style={{ fontFamily: 'var(--font-mono)' }}>{fmt(grandTotal)}</span>
               </div>
             </div>
+
+            {pending.length > 0 && (
+              <div className="text-sm p-3 rounded-lg mb-4" style={{ background: 'rgba(245,158,11,0.08)', color: 'var(--text-2)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                {pending.length} unallocated transaction{pending.length !== 1 ? 's' : ''} will remain in the table. Come back to allocate them later.
+              </div>
+            )}
 
             <div className="text-sm p-3 rounded-lg mb-4" style={{ background: 'rgba(29,158,117,0.07)', color: 'var(--text-2)' }}>
               Transactions with source <strong>reckon</strong> are already in Reckon and will be excluded from posting.

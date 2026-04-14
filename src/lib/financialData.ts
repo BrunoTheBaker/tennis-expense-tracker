@@ -215,39 +215,46 @@ export const JAN_2026: FinancialPeriod = {
 
 // ─── Period registry ─────────────────────────────────────────────────────────
 // Add a new entry here each month after exporting from Reckon.
-// Keys format: 'mmm-yyyy' lowercase, e.g. 'feb-2026'
+// Keys format: 'yyyy-mm', e.g. '2026-02'
 // Values are YTD FinancialPeriod snapshots (1 March 2025 → end of month).
 
 export const PERIODS: Record<string, FinancialPeriod> = {
-  'jan-2026': JAN_2026,
-  'dec-2025': DEC_2025,
+  '2026-01': JAN_2026,
+  '2025-12': DEC_2025,
 }
 
 export const PERIOD_LABELS: Record<string, string> = {
-  'jan-2026': 'January 2026',
-  'dec-2025': 'December 2025',
+  '2026-01': 'January 2026',
+  '2025-12': 'December 2025',
 }
 
-/** The most recent period key — used as the "Full Year" default. */
-export const LATEST_PERIOD_KEY = 'jan-2026'
+/** The most recent period key. */
+export const LATEST_PERIOD_KEY = '2026-01'
 
 /**
  * Returns period keys ordered most-recent first (for the dropdown).
- * Add entries to PERIODS above; this function needs no changes.
+ * Keys are 'yyyy-mm' so lexicographic descending is chronological descending.
  */
 export function getOrderedPeriodKeys(): string[] {
-  // Month order within the FY (Mar=0 … Feb=11)
-  const FY_ORDER: Record<string, number> = {
-    mar: 0, apr: 1, may: 2, jun: 3, jul: 4, aug: 5,
-    sep: 6, oct: 7, nov: 8, dec: 9, jan: 10, feb: 11,
+  return Object.keys(PERIODS).sort((a, b) => b.localeCompare(a))
+}
+
+/**
+ * Returns a FinancialPeriod with all-zero values.
+ * Used as a fallback when no static data exists for the selected period.
+ */
+export function emptyPeriod(): FinancialPeriod {
+  return {
+    label:     '',
+    asAtDate:  '',
+    pnl:       [],
+    balanceSheet: [],
+    drinksPOS: {
+      periodStart: '', periodEnd: '',
+      sales: 0, openingStock: 0, purchases: 0,
+      closingStock: 0, cogs: 0, profit: 0, grossProfitPct: 0,
+    },
   }
-  return Object.keys(PERIODS).sort((a, b) => {
-    const [aM, aY] = a.split('-')
-    const [bM, bY] = b.split('-')
-    const yearDiff = Number(bY) - Number(aY)
-    if (yearDiff !== 0) return yearDiff
-    return (FY_ORDER[bM] ?? 0) - (FY_ORDER[aM] ?? 0)
-  })
 }
 
 // ─── Single seam for UI data fetching ────────────────────────────────────────
@@ -259,7 +266,7 @@ export function getOrderedPeriodKeys(): string[] {
 // // TODO: RECKON API — implement live fetch from /api/reckon/* once credentials
 // arrive and the Reckon → FinancialPeriod mapping is confirmed.
 
-export async function getFinancialData(periodKey: string): Promise<FinancialPeriod | null> {
+export async function getFinancialData(periodKey: string): Promise<FinancialPeriod> {
   // Dynamic import keeps the Reckon module server-side only in RSC contexts.
   // In client components this falls back to static data (isReckonConfigured = false).
   let configured = false
@@ -271,17 +278,13 @@ export async function getFinancialData(periodKey: string): Promise<FinancialPeri
   }
 
   if (!configured) {
-    const key = periodKey === 'full-year'
-      ? (await import('./financialData')).LATEST_PERIOD_KEY
-      : periodKey
-    return PERIODS[key] ?? null
+    return PERIODS[periodKey] ?? emptyPeriod()
   }
 
   // TODO: RECKON API — fetch live period data and map to FinancialPeriod shape.
   // For now fall through to static data even when configured.
   console.warn('[getFinancialData] Live Reckon fetch not yet implemented — using static data')
-  const key = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
-  return PERIODS[key] ?? null
+  return PERIODS[periodKey] ?? emptyPeriod()
 }
 
 // ─── Square integration ───────────────────────────────────────────────────────
