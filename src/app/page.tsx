@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { PERIODS, LATEST_PERIOD_KEY, PERIOD_LABELS } from '@/lib/financialData'
-import { getCachedPeriod, setCachedPeriod, clearCachedPeriod, setActivePeriodKey } from '@/lib/dataCache'
-import { loadPeriodData } from '@/lib/dataLoader'
-import type { PeriodCache } from '@/lib/dataCache'
+import { useState } from 'react'
+import { PERIODS, emptyPeriod } from '@/lib/financialData'
+import { getCurrentPeriod } from '@/lib/periods'
 import PeriodSelector from '@/components/dashboard/PeriodSelector'
 import DataLoadingPanel from '@/components/DataLoadingPanel'
 import CacheStatusBar from '@/components/CacheStatusBar'
@@ -17,70 +15,9 @@ import QuickActions from '@/components/dashboard/QuickActions'
 import AiChatPlaceholder from '@/components/dashboard/AiChatPlaceholder'
 
 export default function DashboardPage() {
-  const [periodKey, setPeriodKey] = useState<string>('full-year')
-  const [isLoading, setIsLoading] = useState(false)
-  const [cache, setCache] = useState<PeriodCache | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const loadGenRef = useRef(0)
+  const [periodKey, setPeriodKey] = useState<string>(getCurrentPeriod())
 
-  const resolvedKey = periodKey === 'full-year' ? LATEST_PERIOD_KEY : periodKey
-  const period = PERIODS[resolvedKey]
-  const periodLabel = PERIOD_LABELS[periodKey] ?? periodKey
-
-  const triggerLoad = useCallback(async (key: string) => {
-    const gen = ++loadGenRef.current
-    setIsLoading(true)
-    setLoadError(null)
-    try {
-      const result = await loadPeriodData(key)
-      if (gen !== loadGenRef.current) return  // superseded by newer load
-      const newCache: PeriodCache = {
-        periodKey: key,
-        transactions: result.transactions,
-        loadedAt: new Date().toISOString(),
-        sources: result.sources,
-      }
-      setCachedPeriod(newCache)
-      setCache(newCache)
-    } catch (err) {
-      if (gen !== loadGenRef.current) return  // superseded
-      const msg = err instanceof Error ? err.message : 'Failed to load data'
-      setLoadError(msg)
-      console.error('[DashboardPage] loadPeriodData failed:', err)
-    } finally {
-      if (gen === loadGenRef.current) setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    setActivePeriodKey(periodKey)
-    const cached = getCachedPeriod(periodKey)
-    if (cached) {
-      setCache(cached)
-    } else {
-      setCache(null)
-      triggerLoad(periodKey)
-    }
-  }, [periodKey, triggerLoad])
-
-  function handleRefresh() {
-    clearCachedPeriod(periodKey)
-    setCache(null)
-    triggerLoad(periodKey)
-  }
-
-  function handleClear() {
-    clearCachedPeriod(periodKey)
-    setCache(null)
-  }
-
-  if (!period) {
-    return (
-      <div className="card text-center py-12" style={{ color: 'var(--text-3)' }}>
-        No data available for this period yet.
-      </div>
-    )
-  }
+  const period = PERIODS[periodKey] ?? emptyPeriod()
 
   return (
     <div className="space-y-6">
@@ -124,8 +61,8 @@ export default function DashboardPage() {
         <CategoryPieChart period={period} mode="expense" />
       </div>
 
-      {/* Monthly trend — only on full year */}
-      {periodKey === 'full-year' && <MonthlyTrendChart />}
+      {/* Monthly trend — only on FY views */}
+      {periodKey.endsWith('-FY') && <MonthlyTrendChart />}
 
       {/* Bank balances + quick actions */}
       <div className="grid grid-cols-[1fr_400px] gap-4 items-start">

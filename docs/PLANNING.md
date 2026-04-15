@@ -1,62 +1,152 @@
-# Tennis Treasury — Architecture & Planning Notes
+# SBTC Treasury App — Planning
 
-## Data Flow (as of April 2026)
+## Terminology
 
-### Financial Period Data (Static)
+| Term | Meaning |
+|------|---------|
+| **Allocation / coding** | Assigning a cost centre (Reckon account code) to a transaction. This is what this app does. |
+| **Bank reconciliation** | Matching bank statement transactions against the accounting system. This happens inside Reckon One — out of scope for this app. |
+| **Posted** | A transaction that has been sent to Reckon One via the API. |
+| **Unallocated** | A transaction with no cost centre assigned yet. |
 
-Reckon P&L and Balance Sheet snapshots are manually entered in `src/lib/financialData.ts` after each month-end export. The Dashboard KPI cards, charts, and bank balances all read from the `PERIODS` registry. No live Reckon API is connected yet.
+> **Note on naming:** Earlier versions of this app used the word "reconcile" for the allocation step. This was incorrect — reconciliation in accounting means matching bank statements to the ledger, which Reckon One handles. The correct terms are *allocate* (assign a cost centre) and *post* (send to Reckon One).
 
-### Live Transaction Data (Square → sessionStorage → Allocation)
+---
 
-The Dashboard period selector is the single trigger for fetching live transaction data:
+## Architecture
 
-1. User selects a period on the Dashboard (`src/app/page.tsx`)
-2. `dataLoader.ts → periodToDateRange()` converts the period key to a YTD ISO date range (always from `2025-03-01`)
-3. `dataLoader.ts → loadPeriodData()` calls `/api/square/payments?from=...&to=...`
-4. The API route (`src/app/api/square/payments/route.ts`) calls Square Orders API and expands line items into `Transaction[]`
-5. Result is deduplicated (composite key: `date|description|amount|reference`) and written to `sessionStorage` via `dataCache.ts`
-6. Cache key: `sbtc_cache_{periodKey}` · Active period key: `sbtc_active_period`
-7. The Allocation page (`src/app/transactions/page.tsx`) reads the cache on mount
+Next.js 14 App Router · TypeScript · Tailwind CSS · Vitest
+
+### Key directories
 
 ```
-Dashboard (period selector)
-       │ onChange
-       ▼
-  dataLoader.ts
-  periodToDateRange()  →  { from: '2025-03-01T00:00:00Z', to: '[end of period]' }
-  loadPeriodData()     →  fetch /api/square/payments
-                          dedup
-                          return LoadResult
-       │
-       ▼
-  dataCache.ts
-  setCachedPeriod()    →  sessionStorage['sbtc_cache_{period}']
-  setActivePeriodKey() →  sessionStorage['sbtc_active_period']
-       │
-       ▼
-  Allocation Page (on mount)
-  getActivePeriodKey() + getCachedPeriod()
-  → pre-populates ReviewTable
+src/
+  app/
+    transactions/page.tsx     # Allocation page (upload → review → post)
+    api/reckon/
+      post-transactions/      # POST /api/reckon/post-transactions
+  components/
+    allocation/               # AllocationGate, CostCentrePicker
+    ReckonPostModal.tsx        # 3-screen post + progress modal
+    RetryQueuePanel.tsx        # Retry queue table + banner
+  lib/
+    reckon/
+      auth.ts                 # OAuth2 client credentials, typed HTTP client
+      api.ts                  # Read-only Reckon API wrappers
+      write.ts                # Server-only write layer (postTransaction*)
+      accountCache.ts         # 60-min server-side account cache
+      mock.ts                 # Static mock data for dev/test
+    csvParser.ts              # Reckon/Square/Stripe CSV parsers + serialiser
+    costCentres.ts            # CostCentre definitions with keyword lists
+    accounts.ts               # Flat chart of accounts
+    financialData.ts          # Transaction type + financial period data
 ```
 
-### CSV Upload (Fallback)
+---
 
-The Reckon, Square CSV, and Stripe workflows still work via CSV upload in `src/components/transactions/CsvUpload.tsx`. This is the only path for Reckon data while the Reckon API integration (`src/lib/reckon/`) remains a stub. Square CSV upload also remains available as a fallback.
+## Allocation workflow
 
-When the user clicks "Upload new file" on the Allocation page, the active period's cache is cleared from sessionStorage so a page reload does not re-hydrate the old data.
+```
+Upload CSV
+  → parse (Reckon / Square / Stripe)
+  → review in sectioned table:
+      Green section  — Allocated (confirmed, ready to post)
+      Amber section  — Not yet allocated (pending, needs cost centre)
+      Grey section   — Skipped
+      Grey (dimmed)  — Posted (postedToReckon === true)
+  → AllocationGate — enabled as soon as ≥1 transaction is allocated
+      button shows count: "Post N →"
+      pending transactions do NOT block posting
+    → ReckonPostModal — Summary screen
+        shows: transaction count, total value, period,
+               two-bucket display (ready to post vs unallocated),
+               breakdown by source + top 5 cost centres
+    → Treasurer confirms → Posting screen
+        sequential post (one-at-a-time, never parallel)
+        live progress bar + last 3 completed transactions
+    → POST to Reckon One (sequential, skip on failure)
+    → CSV downloaded as backup (automatic, always)
+    → Results screen
+        success count + total
+        failed count → retry queue stored in sessionStorage
+    → "Posted ✓" badge applied to successful transactions in table
+    → Unallocated transactions remain in amber section
+    → Failed transactions → RetryQueuePanel (sessionStorage)
+```
 
-### Square API Integration
+### Safety rules (enforced in write.ts)
 
-- Access token: `SQUARE_ACCESS_TOKEN` (server-side env only)
-- Orders endpoint: `src/lib/square/api.ts → searchOrders()`
-- Catalog cache (categories): `src/lib/square/catalog.ts`
-- Line item → Transaction mapping: `src/lib/square/transforms.ts`
-- Cost centre auto-matching: `src/lib/costCentres.ts → SQUARE_CATEGORY_MAP`
+| Rule | Where enforced |
+|------|---------------|
+| NEVER post `source === 'reckon'` | `postTransaction()` guard |
+| NEVER post `postedToReckon === true` | `postTransaction()` guard |
+| NEVER post non-split with no `accountCode` | `postTransaction()` guard |
+| CSV always generated as backup | `ReckonPostModal` results screen |
+| Sequential only — no `Promise.all` | `postTransactionBatch()` |
+| Log every PostResult | `log()` helper in write.ts |
 
-### Pending
+### Retry queue
 
-- **Reckon live API**: `src/lib/reckon/` is stubbed. When Reckon credentials arrive, `getFinancialData()` in `financialData.ts` will switch to live fetch. The `PERIODS` static registry will eventually be retired.
-- **Stripe integration**: Stripe CSV upload works; live fetch not yet implemented.
-- **Multi-source cache**: `PeriodCache.sources` tracks which sources loaded data. Currently only Square writes to the cache. Reckon/Stripe will extend this when implemented — see TODO in `src/app/transactions/page.tsx`.
-- **Split allocation**: Plan written at `docs/superpowers/plans/2026-04-01-split-cost-centre-allocation.md` — not yet executed.
-- **Financial year rollover**: `FY_START` in `dataLoader.ts` is hardcoded to `2025-03-01`. Update when the financial year rolls over — see TODO in that file.
+- Stored in `sessionStorage` under key `sbtc_retry_queue_{period}`
+- Persists across page navigation within the same browser tab
+- `RetryQueueBanner` reads queue on mount, shows count if non-empty
+- `RetryQueuePanel` shows table with Retry + Edit cost centre per row
+- `retryFailed()` clears `postedToReckon` flag before re-attempting
+
+---
+
+## Security
+
+| Behaviour | Implementation |
+|-----------|---------------|
+| Explicit connect required each session | `connectWithCredentials()` — not called automatically |
+| No refresh tokens | Access token only; refresh token discarded after OAuth exchange |
+| Tokens in memory only | No file, cookie, or localStorage storage |
+| 5-minute inactivity timeout | `isInactive()` check in `getAccessToken()` |
+| Active use extends session | `lastActivity` updated on every `getAccessToken()` call |
+| Mid-post interruption handled | `ReckonPostModal` pauses loop on 401, saves remaining to sessionStorage, resumes after re-auth |
+| Session timer in nav | `ReckonSessionTimer` polls `/api/reckon/session-status` every 30 s |
+
+---
+
+## Reckon One API
+
+| Credential | Env var |
+|-----------|---------|
+| OAuth client ID | `RECKON_CLIENT_ID` |
+| OAuth client secret | `RECKON_CLIENT_SECRET` |
+| Book ID | `RECKON_BOOK_ID` |
+| APIM subscription key | `RECKON_SUBSCRIPTION_KEY` |
+
+Base URL: `https://api.reckonone.com/v2`
+
+Write endpoint: `POST /books/{bookId}/transactions`
+
+Request body:
+```json
+{
+  "transactionDate": "2025-03-15",
+  "description":     "Sunday Social – Day Fee",
+  "reference":       "SQ-{reference}",
+  "amount":          4.00,
+  "accountId":       "{reckonAccountId}",
+  "type":            "credit"
+}
+```
+
+Account ID resolution: `accountCode` (e.g. `"4-0207"`) → `Account.id` via chart of accounts cache (`getAccountsWithCache()`).
+
+---
+
+## Testing
+
+Run: `npm test` (vitest)
+
+Key test file: `src/lib/reckon/__tests__/write.test.ts`
+- Continues after single failure
+- Skips `source === 'reckon'` transactions
+- Skips `postedToReckon === true` (duplicate guard)
+- Correct error message on API failure
+- Split transaction: one post per split with suffixed reference
+- Graceful failure when no matching account for cost centre
+- `retryFailed()` clears duplicate guard for re-attempt

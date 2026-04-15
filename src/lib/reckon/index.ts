@@ -3,6 +3,8 @@ export * from './auth'
 export * from './api'
 export * from './mock'
 
+import { getSessionStatus } from './auth'
+
 /**
  * Returns true only when all three Reckon env vars are set to real
  * (non-placeholder) values. Use this to decide whether to call the
@@ -18,4 +20,12 @@ export function isReckonConfigured(): boolean {
     !!secret && secret !== 'YOUR_CLIENT_SECRET' &&
     !!book   && book   !== 'YOUR_BOOK_ID'
   )
+}
+
+/**
+ * Returns true when a valid, non-expired, active session exists.
+ * Equivalent to getSessionStatus().authenticated.
+ */
+export function isAuthenticated(): boolean {
+  return getSessionStatus().authenticated
 }

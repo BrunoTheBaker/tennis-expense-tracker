@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { isReckonConfigured } from '@/lib/reckon'
+import { ReckonAuthError } from '@/lib/reckon/ReckonAuthError'
 import { getTransactions, getAccounts, getBankAccounts, getLedgerReport } from '@/lib/reckon/api'
 import {
   MOCK_TRANSACTIONS,
@@ -76,6 +77,9 @@ export async function GET(
 
     return NextResponse.json({ data })
   } catch (err) {
+    if (err instanceof ReckonAuthError) {
+      return NextResponse.json({ error: err.code }, { status: 401 })
+    }
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[/api/reckon/${endpoint}]`, message)
     return NextResponse.json({ error: message }, { status: 502 })
