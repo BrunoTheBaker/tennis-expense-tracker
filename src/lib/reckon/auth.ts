@@ -141,9 +141,13 @@ export interface ReckonClient {
 }
 
 export async function createReckonClient(): Promise<ReckonClient> {
-  // Auto-connect if no valid session exists — required for serverless environments
-  // (Vercel) where in-memory tokenStore doesn't survive between invocations.
-  if (!tokenStore || Date.now() > tokenStore.expiresAt || isInactive()) {
+  // Auto-connect if no valid session and credentials are configured.
+  // Required for serverless (Vercel) where in-memory tokenStore resets per invocation.
+  const credentialsConfigured =
+    RECKON_CLIENT_ID     !== 'YOUR_CLIENT_ID' &&
+    RECKON_CLIENT_SECRET !== 'YOUR_CLIENT_SECRET'
+
+  if (credentialsConfigured && (!tokenStore || Date.now() > tokenStore.expiresAt || isInactive())) {
     await connectWithCredentials()
   }
   const token = await getAccessToken()
