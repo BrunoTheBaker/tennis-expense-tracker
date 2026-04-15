@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { CsvUpload } from '@/components/transactions/CsvUpload'
 import { ReviewTable } from '@/components/transactions/ReviewTable'
 import { ProgressBar } from '@/components/transactions/ProgressBar'
@@ -21,16 +21,6 @@ export default function AllocationPage() {
   function handleLoaded(txns: Transaction[], src: CsvSource) {
     setTransactions(txns)
     setSource(src)
-    setCacheLabel(null)
-  }
-
-  function handleReset() {
-    // Clear cache for active period so reload doesn't re-hydrate old data
-    const activePeriod = getActivePeriodKey()
-    if (activePeriod) clearCachedPeriod(activePeriod)
-    setTransactions([])
-    setSource(null)
-    setCacheLabel(null)
   }
 
   // Called by ReckonPostModal when posting is complete
@@ -70,7 +60,7 @@ export default function AllocationPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-1)' }}>Allocation</h1>
         <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-          Select a period on the Dashboard to load Square transactions, or upload a CSV from Reckon, Square POS, or Stripe below.
+          Upload a CSV from Reckon, Square POS, or Stripe to begin allocating transactions.
         </p>
         <CsvUpload onLoaded={handleLoaded} />
       </div>
@@ -93,15 +83,12 @@ export default function AllocationPage() {
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-1)' }}>Allocation</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-3)' }}>
             {transactions.length} transactions · source: <strong>{source}</strong>
-            {cacheLabel && (
-              <span> · period: <strong>{cacheLabel}</strong></span>
-            )}
           </p>
         </div>
         <div className="flex gap-3">
           {/* Standalone CSV download — always available */}
           <ExportButton transactions={transactions} />
-          <button type="button" onClick={handleReset} className="btn-secondary text-sm">
+          <button onClick={() => { setTransactions([]); setSource(null) }} className="btn-secondary text-sm">
             Upload new file
           </button>
         </div>

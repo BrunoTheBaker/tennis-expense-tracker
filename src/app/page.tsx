@@ -4,8 +4,6 @@ import { useState } from 'react'
 import { PERIODS, emptyPeriod } from '@/lib/financialData'
 import { getCurrentPeriod } from '@/lib/periods'
 import PeriodSelector from '@/components/dashboard/PeriodSelector'
-import DataLoadingPanel from '@/components/DataLoadingPanel'
-import CacheStatusBar from '@/components/CacheStatusBar'
 import KpiCards from '@/components/dashboard/KpiCards'
 import BankBalances from '@/components/dashboard/BankBalances'
 import CategoryBarChart from '@/components/dashboard/CategoryBarChart'
@@ -28,24 +26,6 @@ export default function DashboardPage() {
         </h1>
         <PeriodSelector value={periodKey} onChange={setPeriodKey} />
       </div>
-
-      {/* Live data status */}
-      {isLoading && <DataLoadingPanel periodLabel={periodLabel} />}
-      {!isLoading && cache && (
-        <CacheStatusBar
-          loadedAt={cache.loadedAt}
-          count={cache.transactions.length}
-          sources={cache.sources}
-          onRefresh={handleRefresh}
-          onClear={handleClear}
-        />
-      )}
-
-      {loadError && (
-        <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-          Could not load live data: {loadError}
-        </p>
-      )}
 
       {/* KPI row — static financial data, unchanged */}
       <KpiCards period={period} />
