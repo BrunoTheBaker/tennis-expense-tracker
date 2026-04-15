@@ -47,12 +47,16 @@ export function clearTokens(): void {
 
 // ─── Connect ──────────────────────────────────────────────────────────────────
 
-/** Exchange client credentials for an access token and start a new session. */
-export async function connectWithCredentials(): Promise<void> {
+/**
+ * Exchange client credentials for an access token and start a new session.
+ * Pass clientSecret to override the env var — used when the secret is entered via UI.
+ */
+export async function connectWithCredentials(clientSecret?: string): Promise<void> {
+  const secret = clientSecret ?? RECKON_CLIENT_SECRET
   const body = new URLSearchParams({
     grant_type:    'client_credentials',
     client_id:     RECKON_CLIENT_ID,
-    client_secret: RECKON_CLIENT_SECRET,
+    client_secret: secret,
     scope:         'reckon.one.api',
   })
 

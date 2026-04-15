@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import type { SessionStatus } from '@/lib/reckon/auth'
 
 async function fetchStatus(): Promise<SessionStatus> {
@@ -10,8 +11,7 @@ async function fetchStatus(): Promise<SessionStatus> {
 }
 
 export default function ReckonSessionTimer() {
-  const [status, setStatus]       = useState<SessionStatus | null>(null)
-  const [connecting, setConnecting] = useState(false)
+  const [status, setStatus] = useState<SessionStatus | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -25,16 +25,6 @@ export default function ReckonSessionTimer() {
     return () => clearInterval(id)
   }, [refresh])
 
-  async function handleExtend() {
-    setConnecting(true)
-    try {
-      await fetch('/api/reckon/auth', { method: 'POST' })
-      await refresh()
-    } finally {
-      setConnecting(false)
-    }
-  }
-
   if (!status) return null
 
   if (!status.authenticated) {
@@ -42,15 +32,14 @@ export default function ReckonSessionTimer() {
       <div className="flex items-center gap-2 text-xs shrink-0">
         <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>Reckon</span>
-        <span style={{ color: 'rgba(255,255,255,0.35)' }}>· Session expired</span>
-        <button
-          onClick={handleExtend}
-          disabled={connecting}
+        <span style={{ color: 'rgba(255,255,255,0.35)' }}>· Not connected</span>
+        <Link
+          href="/settings"
           className="underline underline-offset-2 transition-colors"
-          style={{ color: connecting ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)' }}
+          style={{ color: 'rgba(255,255,255,0.7)' }}
         >
-          {connecting ? 'Connecting…' : 'Reconnect'}
-        </button>
+          Connect
+        </Link>
       </div>
     )
   }
@@ -65,14 +54,13 @@ export default function ReckonSessionTimer() {
         <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>Reckon</span>
         <span style={{ color: 'rgba(255,255,255,0.35)' }}>· Expires in {label}</span>
-        <button
-          onClick={handleExtend}
-          disabled={connecting}
+        <Link
+          href="/settings"
           className="underline underline-offset-2 transition-colors"
-          style={{ color: connecting ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)' }}
+          style={{ color: 'rgba(255,255,255,0.7)' }}
         >
-          {connecting ? 'Connecting…' : 'Extend'}
-        </button>
+          Renew
+        </Link>
       </div>
     )
   }

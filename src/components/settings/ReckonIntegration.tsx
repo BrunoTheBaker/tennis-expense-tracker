@@ -13,6 +13,7 @@ export default function ReckonIntegration() {
   const [status, setStatus]         = useState<SessionStatus | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
+  const [secret, setSecret]         = useState('')
 
   async function refresh() {
     try {
@@ -23,15 +24,24 @@ export default function ReckonIntegration() {
   useEffect(() => { refresh() }, [])
 
   async function handleConnect() {
+    if (!secret.trim()) {
+      setError('Enter your Reckon client secret to connect.')
+      return
+    }
     setConnecting(true)
     setError(null)
     try {
-      const res = await fetch('/api/reckon/auth', { method: 'POST' })
+      const res = await fetch('/api/reckon/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientSecret: secret.trim() }),
+      })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError((data as { error?: string }).error ?? 'Connection failed')
         return
       }
+      setSecret('')
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
@@ -94,7 +104,7 @@ export default function ReckonIntegration() {
 
           <div className="flex items-center justify-between">
             <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-              You will need to log in to Reckon each session.
+              Your secret is not stored — you will need to reconnect each session.
             </p>
             <button className="btn-secondary text-sm" onClick={handleDisconnect}>
               Disconnect
@@ -107,9 +117,23 @@ export default function ReckonIntegration() {
           <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg)' }}>
             <p className="text-sm" style={{ color: 'var(--text-2)' }}>Not connected</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-              Connect to post transactions directly to Reckon One.
-              You will need to log in each session — no credentials are stored.
+              Enter your client secret to connect. It is sent directly to Reckon and never stored.
             </p>
+          </div>
+
+          <div className="mb-3">
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-3)' }}>
+              Client secret
+            </label>
+            <input
+              type="password"
+              value={secret}
+              onChange={e => setSecret(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleConnect()}
+              placeholder="Paste your Reckon client secret"
+              className="input-field w-full"
+              autoComplete="off"
+            />
           </div>
 
           {error && (
@@ -119,7 +143,7 @@ export default function ReckonIntegration() {
           <button
             className="btn-primary"
             onClick={handleConnect}
-            disabled={connecting}
+            disabled={connecting || !secret.trim()}
           >
             {connecting ? 'Connecting…' : 'Connect to Reckon One'}
           </button>
