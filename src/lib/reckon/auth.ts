@@ -57,8 +57,14 @@ export async function connectWithCredentials(clientSecret?: string): Promise<voi
     grant_type:    'client_credentials',
     client_id:     RECKON_CLIENT_ID,
     client_secret: secret,
-    scope:         'reckon.one.api',
+    // scope omitted — trying without it first
   })
+
+  console.log('=== RECKON TOKEN REQUEST ===')
+  console.log('URL:', RECKON_TOKEN_URL)
+  console.log('client_id prefix:', RECKON_CLIENT_ID.slice(0, 8))
+  console.log('client_secret provided:', secret !== 'YOUR_CLIENT_SECRET' && secret.length > 0)
+  console.log('grant_type: client_credentials')
 
   const res = await fetch(RECKON_TOKEN_URL, {
     method:  'POST',
@@ -68,6 +74,9 @@ export async function connectWithCredentials(clientSecret?: string): Promise<voi
 
   if (!res.ok) {
     const text = await res.text()
+    console.error('=== RECKON AUTH FAILURE ===')
+    console.error('Status:', res.status)
+    console.error('Body:', text)
     throw new Error(`Reckon auth failed (${res.status}): ${text}`)
   }
 
