@@ -11,14 +11,18 @@ import { getSessionStatus } from './auth'
  * live API or fall back to static/mock data.
  */
 export function isReckonConfigured(): boolean {
-  const id     = process.env.RECKON_CLIENT_ID
-  const secret = process.env.RECKON_CLIENT_SECRET
-  const book   = process.env.RECKON_BOOK_ID
+  const id       = process.env.RECKON_CLIENT_ID
+  const secret   = process.env.RECKON_CLIENT_SECRET
+  const book     = process.env.RECKON_BOOK_ID
+  const username = process.env.RECKON_USERNAME
+  const password = process.env.RECKON_PASSWORD
 
   return (
-    !!id     && id     !== 'YOUR_CLIENT_ID'     &&
-    !!secret && secret !== 'YOUR_CLIENT_SECRET' &&
-    !!book   && book   !== 'YOUR_BOOK_ID'
+    !!id       && id     !== 'YOUR_CLIENT_ID'     &&
+    !!secret   && secret !== 'YOUR_CLIENT_SECRET' &&
+    !!book     && book   !== 'YOUR_BOOK_ID'       &&
+    !!username &&
+    !!password
   )
 }
 

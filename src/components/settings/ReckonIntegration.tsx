@@ -13,7 +13,6 @@ export default function ReckonIntegration() {
   const [status, setStatus]         = useState<SessionStatus | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
-  const [secret, setSecret]         = useState('')
 
   async function refresh() {
     try {
@@ -24,24 +23,15 @@ export default function ReckonIntegration() {
   useEffect(() => { refresh() }, [])
 
   async function handleConnect() {
-    if (!secret.trim()) {
-      setError('Enter your Reckon client secret to connect.')
-      return
-    }
     setConnecting(true)
     setError(null)
     try {
-      const res = await fetch('/api/reckon/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientSecret: secret.trim() }),
-      })
+      const res = await fetch('/api/reckon/auth', { method: 'POST' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError((data as { error?: string }).error ?? 'Connection failed')
         return
       }
-      setSecret('')
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
@@ -66,7 +56,6 @@ export default function ReckonIntegration() {
             Direct API integration for posting transactions.
           </p>
         </div>
-        {/* Status dot */}
         {status && (
           <span
             className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
@@ -77,7 +66,6 @@ export default function ReckonIntegration() {
 
       {connected && status ? (
         <>
-          {/* Connected state */}
           <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg)' }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="w-2 h-2 rounded-full" style={{ background: 'var(--green)' }} />
@@ -104,7 +92,7 @@ export default function ReckonIntegration() {
 
           <div className="flex items-center justify-between">
             <p className="text-xs" style={{ color: 'var(--text-3)' }}>
-              Your secret is not stored — you will need to reconnect each session.
+              Session auto-reconnects while credentials are configured.
             </p>
             <button className="btn-secondary text-sm" onClick={handleDisconnect}>
               Disconnect
@@ -113,27 +101,11 @@ export default function ReckonIntegration() {
         </>
       ) : (
         <>
-          {/* Disconnected state */}
           <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--bg)' }}>
             <p className="text-sm" style={{ color: 'var(--text-2)' }}>Not connected</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-              Enter your client secret to connect. It is sent directly to Reckon and never stored.
+              Connect to post transactions directly to Reckon One.
             </p>
-          </div>
-
-          <div className="mb-3">
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-3)' }}>
-              Client secret
-            </label>
-            <input
-              type="password"
-              value={secret}
-              onChange={e => setSecret(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleConnect()}
-              placeholder="Paste your Reckon client secret"
-              className="input-field w-full"
-              autoComplete="off"
-            />
           </div>
 
           {error && (
@@ -143,7 +115,7 @@ export default function ReckonIntegration() {
           <button
             className="btn-primary"
             onClick={handleConnect}
-            disabled={connecting || !secret.trim()}
+            disabled={connecting}
           >
             {connecting ? 'Connecting…' : 'Connect to Reckon One'}
           </button>

@@ -1,18 +1,20 @@
 /**
- * OAuth 2.0 client credentials flow for Reckon One API v2.
+ * Resource Owner Password flow for Reckon One API v2.
  *
  * Session model:
  *  - Tokens live in memory only — no file storage, no refresh tokens.
  *  - getAccessToken() throws ReckonAuthError if not connected, expired, or inactive.
- *  - Call connectWithCredentials() to start a session (e.g. from /api/reckon/auth).
+ *  - createReckonClient() auto-connects when all credentials are configured.
  *  - Sessions expire after 5 minutes of inactivity OR when the access token expires.
  *
- * // TODO: RECKON API — set RECKON_CLIENT_ID, RECKON_CLIENT_SECRET, RECKON_BOOK_ID
- * in .env.local once credentials arrive.
+ * Grant type: password (Resource Owner Password Credentials)
+ * Reason: client_credentials returns unauthorized_client for this Reckon account.
  */
 
 const RECKON_CLIENT_ID        = process.env.RECKON_CLIENT_ID        ?? 'YOUR_CLIENT_ID'
 const RECKON_CLIENT_SECRET    = process.env.RECKON_CLIENT_SECRET    ?? 'YOUR_CLIENT_SECRET'
+const RECKON_USERNAME         = process.env.RECKON_USERNAME         ?? ''
+const RECKON_PASSWORD         = process.env.RECKON_PASSWORD         ?? ''
 export const RECKON_BOOK_ID   = process.env.RECKON_BOOK_ID          ?? 'YOUR_BOOK_ID'
 const RECKON_SUBSCRIPTION_KEY = process.env.RECKON_SUBSCRIPTION_KEY ?? ''
 
@@ -48,23 +50,18 @@ export function clearTokens(): void {
 // ─── Connect ──────────────────────────────────────────────────────────────────
 
 /**
- * Exchange client credentials for an access token and start a new session.
- * Pass clientSecret to override the env var — used when the secret is entered via UI.
+ * Exchange credentials for an access token using Resource Owner Password flow.
+ * All credentials come from env vars — no UI input required.
  */
-export async function connectWithCredentials(clientSecret?: string): Promise<void> {
-  const secret = clientSecret ?? RECKON_CLIENT_SECRET
+export async function connectWithCredentials(): Promise<void> {
   const body = new URLSearchParams({
-    grant_type:    'client_credentials',
+    grant_type:    'password',
     client_id:     RECKON_CLIENT_ID,
-    client_secret: secret,
-    // scope omitted — trying without it first
+    client_secret: RECKON_CLIENT_SECRET,
+    username:      RECKON_USERNAME,
+    password:      RECKON_PASSWORD,
+    scope:         'openid read write offline_access',
   })
-
-  console.log('=== RECKON TOKEN REQUEST ===')
-  console.log('URL:', RECKON_TOKEN_URL)
-  console.log('client_id prefix:', RECKON_CLIENT_ID.slice(0, 8))
-  console.log('client_secret provided:', secret !== 'YOUR_CLIENT_SECRET' && secret.length > 0)
-  console.log('grant_type: client_credentials')
 
   const res = await fetch(RECKON_TOKEN_URL, {
     method:  'POST',
@@ -74,9 +71,6 @@ export async function connectWithCredentials(clientSecret?: string): Promise<voi
 
   if (!res.ok) {
     const text = await res.text()
-    console.error('=== RECKON AUTH FAILURE ===')
-    console.error('Status:', res.status)
-    console.error('Body:', text)
     throw new Error(`Reckon auth failed (${res.status}): ${text}`)
   }
 
@@ -87,7 +81,6 @@ export async function connectWithCredentials(clientSecret?: string): Promise<voi
     accessToken:  json.access_token,
     expiresAt:    now + json.expires_in * 1000,
     lastActivity: now,
-    // refresh_token intentionally discarded
   }
 }
 
@@ -110,7 +103,6 @@ export async function getAccessToken(): Promise<string> {
     throw new ReckonAuthError('INACTIVITY_TIMEOUT')
   }
 
-  // Update last activity on every valid use — active use naturally extends the session
   tokenStore.lastActivity = Date.now()
   return tokenStore.accessToken
 }
@@ -154,11 +146,13 @@ export interface ReckonClient {
 }
 
 export async function createReckonClient(): Promise<ReckonClient> {
-  // Auto-connect if no valid session and credentials are configured.
+  // Auto-connect if no valid session and all credentials are configured.
   // Required for serverless (Vercel) where in-memory tokenStore resets per invocation.
   const credentialsConfigured =
-    RECKON_CLIENT_ID     !== 'YOUR_CLIENT_ID' &&
-    RECKON_CLIENT_SECRET !== 'YOUR_CLIENT_SECRET'
+    RECKON_CLIENT_ID !== 'YOUR_CLIENT_ID' &&
+    RECKON_CLIENT_SECRET !== 'YOUR_CLIENT_SECRET' &&
+    RECKON_USERNAME !== '' &&
+    RECKON_PASSWORD !== ''
 
   if (credentialsConfigured && (!tokenStore || Date.now() > tokenStore.expiresAt || isInactive())) {
     await connectWithCredentials()
@@ -180,12 +174,10 @@ export async function createReckonClient(): Promise<ReckonClient> {
     async get<T>(endpoint: string): Promise<T> {
       const url = `${RECKON_BASE_URL}${endpoint}`
       const res = await fetch(url, { headers: baseHeaders() })
-
       if (!res.ok) {
         const text = await res.text()
         throw new Error(`Reckon API error (${res.status}) at GET ${endpoint}: ${text}`)
       }
-
       return res.json() as Promise<T>
     },
 
@@ -196,12 +188,10 @@ export async function createReckonClient(): Promise<ReckonClient> {
         headers: { ...baseHeaders(), 'Content-Type': 'application/json' },
         body:    JSON.stringify(body),
       })
-
       if (!res.ok) {
         const text = await res.text()
         throw new Error(`Reckon API error (${res.status}) at POST ${endpoint}: ${text}`)
       }
-
       return res.json() as Promise<T>
     },
   }

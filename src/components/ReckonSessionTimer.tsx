@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import type { SessionStatus } from '@/lib/reckon/auth'
 
 async function fetchStatus(): Promise<SessionStatus> {
@@ -11,7 +10,8 @@ async function fetchStatus(): Promise<SessionStatus> {
 }
 
 export default function ReckonSessionTimer() {
-  const [status, setStatus] = useState<SessionStatus | null>(null)
+  const [status, setStatus]         = useState<SessionStatus | null>(null)
+  const [connecting, setConnecting] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -25,6 +25,16 @@ export default function ReckonSessionTimer() {
     return () => clearInterval(id)
   }, [refresh])
 
+  async function handleReconnect() {
+    setConnecting(true)
+    try {
+      await fetch('/api/reckon/auth', { method: 'POST' })
+      await refresh()
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   if (!status) return null
 
   if (!status.authenticated) {
@@ -33,13 +43,14 @@ export default function ReckonSessionTimer() {
         <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>Reckon</span>
         <span style={{ color: 'rgba(255,255,255,0.35)' }}>· Not connected</span>
-        <Link
-          href="/settings"
+        <button
+          onClick={handleReconnect}
+          disabled={connecting}
           className="underline underline-offset-2 transition-colors"
-          style={{ color: 'rgba(255,255,255,0.7)' }}
+          style={{ color: connecting ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)' }}
         >
-          Connect
-        </Link>
+          {connecting ? 'Connecting…' : 'Reconnect'}
+        </button>
       </div>
     )
   }
@@ -54,13 +65,14 @@ export default function ReckonSessionTimer() {
         <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />
         <span style={{ color: 'rgba(255,255,255,0.55)' }}>Reckon</span>
         <span style={{ color: 'rgba(255,255,255,0.35)' }}>· Expires in {label}</span>
-        <Link
-          href="/settings"
+        <button
+          onClick={handleReconnect}
+          disabled={connecting}
           className="underline underline-offset-2 transition-colors"
-          style={{ color: 'rgba(255,255,255,0.7)' }}
+          style={{ color: connecting ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)' }}
         >
-          Renew
-        </Link>
+          {connecting ? 'Connecting…' : 'Extend'}
+        </button>
       </div>
     )
   }
