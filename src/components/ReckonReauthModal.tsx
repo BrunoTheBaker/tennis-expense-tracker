@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import type { AuthErrorCode } from '@/lib/reckon/ReckonAuthError'
 
 interface Props {
@@ -24,30 +23,10 @@ export default function ReckonReauthModal({
   onClose,
   onResumeAfterAuth,
 }: Props) {
-  const [connecting, setConnecting] = useState(false)
-  const [error, setError]           = useState<string | null>(null)
-
   const hasPausedWork = remainingCount != null && remainingCount > 0
 
-  async function handleConnect() {
-    setConnecting(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/reckon/auth', { method: 'POST' })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setError((data as { error?: string }).error ?? 'Connection failed')
-        return
-      }
-      if (onResumeAfterAuth) {
-        onResumeAfterAuth()
-      }
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed')
-    } finally {
-      setConnecting(false)
-    }
+  function handleConnect() {
+    window.location.href = '/api/reckon/auth'
   }
 
   return (
@@ -89,26 +68,13 @@ export default function ReckonReauthModal({
           </p>
         )}
 
-        {/* Connection error */}
-        {error && (
-          <p className="text-sm mb-3" style={{ color: 'var(--red)' }}>{error}</p>
-        )}
-
         {/* Actions */}
         <div className="flex gap-3 justify-end">
           {!hasPausedWork && (
             <button className="btn-secondary" onClick={onClose}>Dismiss</button>
           )}
-          <button
-            className="btn-primary"
-            onClick={handleConnect}
-            disabled={connecting}
-          >
-            {connecting
-              ? 'Connecting…'
-              : hasPausedWork
-                ? 'Log in and resume →'
-                : 'Log in to Reckon again →'}
+          <button className="btn-primary" onClick={handleConnect}>
+            {hasPausedWork ? 'Log in and resume →' : 'Log in to Reckon again →'}
           </button>
         </div>
       </div>

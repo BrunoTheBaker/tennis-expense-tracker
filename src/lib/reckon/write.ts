@@ -10,7 +10,7 @@
  */
 import 'server-only'
 
-import { createReckonClient, RECKON_BOOK_ID } from './auth'
+import { reckonFetch } from './client'
 import { getAccountsWithCache } from './accountCache'
 import type { Transaction } from '@/lib/financialData'
 
@@ -98,7 +98,6 @@ export async function postTransaction(transaction: Transaction): Promise<PostRes
       return result
     }
 
-    const client  = await createReckonClient()
     const body: ReckonPostBody = {
       transactionDate: toIsoDate(transaction.date),
       description:     transaction.description,
@@ -108,10 +107,10 @@ export async function postTransaction(transaction: Transaction): Promise<PostRes
       type:            transaction.amount >= 0 ? 'credit' : 'debit',
     }
 
-    const response = await client.post<ReckonPostResponse>(
-      `/books/${RECKON_BOOK_ID}/transactions`,
-      body,
-    )
+    const response = await reckonFetch<ReckonPostResponse>('/transactions', {
+      method: 'POST',
+      body:   JSON.stringify(body),
+    })
 
     const result: PostResult = { transactionId: id, status: 'success', reckonId: response.id }
     log(result)
@@ -136,8 +135,6 @@ async function postSplitTransaction(transaction: Transaction): Promise<PostResul
   const id       = transaction.reference || `${transaction.date}-${transaction.description}`
   const splits   = transaction.splits!
   const accounts = await getAccountsWithCache()
-  const client   = await createReckonClient()
-
   const reckonIds: string[] = []
 
   for (let i = 0; i < splits.length; i++) {
@@ -163,10 +160,10 @@ async function postSplitTransaction(transaction: Transaction): Promise<PostResul
         accountId:       account.id,
         type:            split.amount >= 0 ? 'credit' : 'debit',
       }
-      const response = await client.post<ReckonPostResponse>(
-        `/books/${RECKON_BOOK_ID}/transactions`,
-        body,
-      )
+      const response = await reckonFetch<ReckonPostResponse>('/transactions', {
+        method: 'POST',
+        body:   JSON.stringify(body),
+      })
       reckonIds.push(response.id)
     } catch (err) {
       const result: PostResult = {

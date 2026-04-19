@@ -1,189 +1,215 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Must be hoisted before imports — mock server-only so it doesn't throw in tests
+vi.mock('server-only', () => ({}))
+
+// Mock node:fs to avoid writing .reckon-tokens.json during tests
+vi.mock('node:fs', () => ({
+  existsSync:   vi.fn(() => false),
+  readFileSync:  vi.fn(() => ''),
+  writeFileSync: vi.fn(),
+  unlinkSync:    vi.fn(),
+}))
+
 import {
+  isAuthenticated,
+  getAuthenticatedAt,
   getAccessToken,
-  connectWithCredentials,
+  getAuthorizationUrl,
+  validateState,
+  exchangeCodeForTokens,
   clearTokens,
-  getSessionStatus,
-  INACTIVITY_TIMEOUT_MS,
-  _resetTokenStore,
+  _resetTokenCache,
 } from '../auth'
-import { ReckonAuthError } from '../ReckonAuthError'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function mockSuccessfulConnect(expiresIn = 3600) {
+function mockTokenResponse(overrides: Partial<{
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  ok: boolean
+}> = {}) {
   return vi.fn().mockResolvedValueOnce({
-    ok:   true,
-    json: async () => ({ access_token: 'test-token', expires_in: expiresIn }),
-    text: async () => '',
+    ok:   overrides.ok   ?? true,
+    json: async () => ({
+      access_token:  overrides.access_token  ?? 'access-token',
+      refresh_token: overrides.refresh_token ?? 'refresh-token',
+      expires_in:    overrides.expires_in    ?? 3600,
+    }),
+    text: async () => 'error body',
   })
 }
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  _resetTokenStore()
+  _resetTokenCache()
   vi.restoreAllMocks()
-  vi.useRealTimers()
 })
 
-afterEach(() => {
-  vi.useRealTimers()
-})
+// ── 1. isAuthenticated ────────────────────────────────────────────────────────
 
-// ── 1. getAccessToken() throws INACTIVITY_TIMEOUT after 5 min ─────────────────
-
-describe('getAccessToken — inactivity timeout', () => {
-  it('throws INACTIVITY_TIMEOUT when lastActivity is more than 5 minutes ago', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
-
-    // Advance time past the inactivity threshold
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1)
-
-    // Single call — first call throws + clears the store; a second call would give NOT_AUTHENTICATED
-    await expect(getAccessToken()).rejects.toMatchObject({ code: 'INACTIVITY_TIMEOUT', name: 'ReckonAuthError' })
+describe('isAuthenticated', () => {
+  it('returns false when no tokens are stored', () => {
+    expect(isAuthenticated()).toBe(false)
   })
 
-  it('does NOT throw before the inactivity threshold', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
-
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS - 1000)  // just under 5 min
-
-    await expect(getAccessToken()).resolves.toBe('test-token')
+  it('returns true after exchangeCodeForTokens', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse())
+    await exchangeCodeForTokens('code')
+    expect(isAuthenticated()).toBe(true)
   })
-})
 
-// ── 2. getAccessToken() throws TOKEN_EXPIRED when past expiry ─────────────────
-
-describe('getAccessToken — token expiry', () => {
-  it('throws TOKEN_EXPIRED when access token is past its expiry time', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect(0))  // expires immediately
-    await connectWithCredentials()
-
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(1000)  // past expiry
-
-    await expect(getAccessToken()).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
-  })
-})
-
-// ── 3. getAccessToken() updates lastActivity on each valid call ───────────────
-
-describe('getAccessToken — updates lastActivity', () => {
-  it('updates lastActivity so the inactivity timer resets on each call', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
-
-    vi.useFakeTimers()
-
-    // Advance to just under 5 min, call getAccessToken to reset timer
-    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS - 5000)
-    await getAccessToken()
-
-    // Advance another 4 minutes — total 9 min since connect, but only 4 since last call
-    vi.advanceTimersByTime(4 * 60 * 1000)
-
-    // Should still be valid because lastActivity was updated
-    await expect(getAccessToken()).resolves.toBe('test-token')
-  })
-})
-
-// ── 4. clearTokens() sets tokenStore to null ──────────────────────────────────
-
-describe('clearTokens', () => {
-  it('sets the token store to null so the next call throws NOT_AUTHENTICATED', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
-
-    // Verify connected
-    await expect(getAccessToken()).resolves.toBe('test-token')
-
+  it('returns false after clearTokens', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse())
+    await exchangeCodeForTokens('code')
     clearTokens()
-
-    // Now it should throw
-    await expect(getAccessToken()).rejects.toMatchObject({ code: 'NOT_AUTHENTICATED' })
+    expect(isAuthenticated()).toBe(false)
   })
 })
 
-// ── 5. getSessionStatus() returns correct minutesRemaining ────────────────────
+// ── 2. getAuthorizationUrl ────────────────────────────────────────────────────
 
-describe('getSessionStatus', () => {
-  it('returns authenticated: false when not connected', () => {
-    const status = getSessionStatus()
-    expect(status.authenticated).toBe(false)
-    expect(status.minutesRemaining).toBeNull()
-    expect(status.minutesSinceActivity).toBeNull()
+describe('getAuthorizationUrl', () => {
+  it('returns a URL pointing to identity.reckon.com', () => {
+    process.env.RECKON_CLIENT_ID    = 'client123'
+    process.env.RECKON_REDIRECT_URI = 'https://example.com/callback'
+
+    const url = getAuthorizationUrl()
+    expect(url).toContain('https://identity.reckon.com/connect/authorize')
+    expect(url).toContain('client_id=client123')
+    expect(url).toContain('response_type=code')
+    expect(url).toContain('redirect_uri=')
   })
 
-  it('returns correct minutesRemaining after connecting', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect(3600))  // 1 hour token
-    await connectWithCredentials()
-
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(2 * 60 * 1000)  // 2 minutes pass
-
-    const status = getSessionStatus()
-    expect(status.authenticated).toBe(true)
-    // 3 minutes remaining until inactivity timeout (5 min - 2 min elapsed)
-    expect(status.minutesRemaining).toBe(3)
-    expect(status.minutesSinceActivity).toBe(2)
+  it('includes state and nonce in the URL', () => {
+    const url = getAuthorizationUrl()
+    const params = new URL(url).searchParams
+    expect(params.get('state')).toBeTruthy()
+    expect(params.get('nonce')).toBeTruthy()
   })
 
-  it('returns authenticated: false after inactivity expires', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
-
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1000)
-
-    const status = getSessionStatus()
-    expect(status.authenticated).toBe(false)
+  it('stores a state value that validateState can verify', () => {
+    const url   = getAuthorizationUrl()
+    const state = new URL(url).searchParams.get('state')!
+    expect(validateState(state)).toBe(true)
   })
 })
 
-// ── 6. isInactive returns true after 5 min ────────────────────────────────────
-// Tested indirectly via getAccessToken and getSessionStatus above.
-// This test validates the boundary explicitly.
+// ── 3. validateState ──────────────────────────────────────────────────────────
 
-describe('inactivity boundary', () => {
-  it('session is invalid one millisecond past INACTIVITY_TIMEOUT_MS', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect())
-    await connectWithCredentials()
+describe('validateState', () => {
+  it('returns false when no state is pending', () => {
+    expect(validateState('anything')).toBe(false)
+  })
 
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(INACTIVITY_TIMEOUT_MS + 1)
+  it('returns false for the wrong state value', () => {
+    getAuthorizationUrl()  // sets _pendingState
+    expect(validateState('wrong-state')).toBe(false)
+  })
 
-    await expect(getAccessToken()).rejects.toMatchObject({ code: 'INACTIVITY_TIMEOUT' })
+  it('is one-time use — returns false on second call with same value', () => {
+    const url   = getAuthorizationUrl()
+    const state = new URL(url).searchParams.get('state')!
+    expect(validateState(state)).toBe(true)
+    expect(validateState(state)).toBe(false)
   })
 })
 
-// ── 7. exchangeCodeForTokens / connectWithCredentials does NOT store refresh token
+// ── 4. exchangeCodeForTokens ──────────────────────────────────────────────────
 
-describe('connectWithCredentials — no refresh token stored', () => {
-  it('succeeds without a refresh_token in the response', async () => {
-    // Response has no refresh_token — should not throw or store it
+describe('exchangeCodeForTokens', () => {
+  it('calls the token endpoint with grant_type=authorization_code', async () => {
+    const mockFetch = mockTokenResponse()
+    vi.stubGlobal('fetch', mockFetch)
+
+    await exchangeCodeForTokens('my-code')
+
+    const [url, opts] = mockFetch.mock.calls[0]
+    expect(url).toContain('identity.reckon.com/connect/token')
+    const body = new URLSearchParams(opts.body as string)
+    expect(body.get('grant_type')).toBe('authorization_code')
+    expect(body.get('code')).toBe('my-code')
+  })
+
+  it('uses Basic auth in the Authorization header', async () => {
+    process.env.RECKON_CLIENT_ID     = 'cid'
+    process.env.RECKON_CLIENT_SECRET = 'csecret'
+    const mockFetch = mockTokenResponse()
+    vi.stubGlobal('fetch', mockFetch)
+
+    await exchangeCodeForTokens('code')
+
+    const [, opts] = mockFetch.mock.calls[0]
+    const expected = 'Basic ' + Buffer.from('cid:csecret').toString('base64')
+    expect((opts.headers as Record<string, string>)['Authorization']).toBe(expected)
+  })
+
+  it('throws when the token endpoint returns a non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
-      ok:   true,
-      json: async () => ({ access_token: 'no-refresh-token', expires_in: 3600 }),
-      text: async () => '',
+      ok:     false,
+      status: 400,
+      text:   async () => 'invalid_grant',
     }))
 
-    await expect(connectWithCredentials()).resolves.toBeUndefined()
-    await expect(getAccessToken()).resolves.toBe('no-refresh-token')
+    await expect(exchangeCodeForTokens('bad-code')).rejects.toThrow('400')
+  })
+})
+
+// ── 5. getAccessToken ─────────────────────────────────────────────────────────
+
+describe('getAccessToken', () => {
+  it('throws when not authenticated', async () => {
+    await expect(getAccessToken()).rejects.toThrow('Not authenticated')
   })
 
-  it('throws NOT_AUTHENTICATED (not an auto-refresh) when token expires', async () => {
-    vi.stubGlobal('fetch', mockSuccessfulConnect(0))  // expires immediately
-    await connectWithCredentials()
+  it('returns the access token when authenticated and not near expiry', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse({ access_token: 'my-token', expires_in: 3600 }))
+    await exchangeCodeForTokens('code')
 
-    vi.useFakeTimers()
-    vi.advanceTimersByTime(1000)
+    await expect(getAccessToken()).resolves.toBe('my-token')
+  })
 
-    // Must throw — no auto-refresh behaviour
-    await expect(getAccessToken()).rejects.toMatchObject({ code: 'TOKEN_EXPIRED' })
+  it('refreshes the token when within 5 minutes of expiry', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({  // initial exchange — token expires in 4 min 59 sec
+        ok:   true,
+        json: async () => ({
+          access_token:  'old-token',
+          refresh_token: 'refresh-token',
+          expires_in:    299,
+        }),
+      })
+      .mockResolvedValueOnce({  // refresh call
+        ok:   true,
+        json: async () => ({
+          access_token:  'new-token',
+          refresh_token: 'new-refresh',
+          expires_in:    3600,
+        }),
+      })
+    )
+
+    await exchangeCodeForTokens('code')
+    const token = await getAccessToken()
+    expect(token).toBe('new-token')
+  })
+})
+
+// ── 6. getAuthenticatedAt ─────────────────────────────────────────────────────
+
+describe('getAuthenticatedAt', () => {
+  it('returns null when not authenticated', () => {
+    expect(getAuthenticatedAt()).toBeNull()
+  })
+
+  it('returns an ISO string after exchanging tokens', async () => {
+    vi.stubGlobal('fetch', mockTokenResponse())
+    await exchangeCodeForTokens('code')
+
+    const at = getAuthenticatedAt()
+    expect(at).toBeTruthy()
+    expect(new Date(at!).getFullYear()).toBeGreaterThanOrEqual(2025)
   })
 })

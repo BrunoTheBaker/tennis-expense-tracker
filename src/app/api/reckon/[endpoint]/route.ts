@@ -63,7 +63,7 @@ export async function GET(
         data = await getTransactions(bookId, from, to)
         break
       case 'accounts':
-        data = await getAccounts(bookId)
+        data = await getAccounts()
         break
       case 'bankaccounts':
         data = await getBankAccounts(bookId)

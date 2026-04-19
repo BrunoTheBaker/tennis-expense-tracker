@@ -7,12 +7,10 @@
  */
 
 import { getAccounts } from './api'
-import type { Account } from './types'
-
-// ─── Server-side in-memory cache ─────────────────────────────────────────────
+import type { ReckonAccount } from './types'
 
 interface AccountCache {
-  accounts: Account[]
+  accounts: ReckonAccount[]
   fetchedAt: number   // unix ms
 }
 
@@ -20,11 +18,7 @@ const TTL_MS = 60 * 60 * 1000   // 60 minutes
 
 let _cache: AccountCache | null = null
 
-/**
- * Returns the chart of accounts, re-fetching only if the cache is
- * missing or older than 60 minutes.
- */
-export async function getAccountsWithCache(): Promise<Account[]> {
+export async function getAccountsWithCache(): Promise<ReckonAccount[]> {
   const now = Date.now()
 
   if (_cache && now - _cache.fetchedAt < TTL_MS) {
@@ -36,7 +30,6 @@ export async function getAccountsWithCache(): Promise<Account[]> {
   return accounts
 }
 
-/** Clears the cache — useful in tests. */
 export function _resetAccountCache() {
   _cache = null
 }

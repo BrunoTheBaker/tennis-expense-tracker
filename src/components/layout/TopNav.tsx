@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Settings } from 'lucide-react'
-import ReckonSessionTimer from '@/components/ReckonSessionTimer'
 
 const TABS = [
   { label: 'Dashboard',  href: '/' },
@@ -58,13 +57,10 @@ export default function TopNav() {
         ))}
       </div>
 
-      {/* Reckon session timer */}
-      <ReckonSessionTimer />
-
       {/* Settings icon */}
       <Link
         href="/settings"
-        className="text-white/60 hover:text-white transition-colors ml-2"
+        className="text-white/60 hover:text-white transition-colors"
         aria-label="Settings"
       >
         <Settings size={18} />

@@ -39,6 +39,15 @@ export interface Account {
   description?: string
 }
 
+/** Spec-aligned account shape returned by api.ts getAccounts(). */
+export interface ReckonAccount {
+  id: string
+  name: string
+  code: string
+  type: string
+  balance: number
+}
+
 // ─── Bank accounts ────────────────────────────────────────────────────────────
 
 export interface BankAccount {
@@ -51,6 +60,14 @@ export interface BankAccount {
   accountNumber?: string
   balance: number
   currency: string      // "AUD"
+}
+
+/** Spec-aligned bank balance shape returned by api.ts getBankBalances(). */
+export interface ReckonBankBalance {
+  id: string
+  name: string
+  balance: number
+  currency: string
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
@@ -95,4 +112,12 @@ export interface LedgerEntry {
   debit: number
   credit: number
   runningBalance: number
+}
+
+// ─── P&L report ───────────────────────────────────────────────────────────────
+
+export interface ReckonPnL {
+  income:    { accountName: string; amount: number }[]
+  expenses:  { accountName: string; amount: number }[]
+  netProfit: number
 }

@@ -8,22 +8,21 @@ vi.mock('../accountCache', () => ({
   getAccountsWithCache: vi.fn(),
 }))
 
-// ── Mock auth ─────────────────────────────────────────────────────────────────
-vi.mock('../auth', () => ({
-  createReckonClient: vi.fn(),
-  RECKON_BOOK_ID:     'test-book-id',
+// ── Mock reckonFetch from client.ts ───────────────────────────────────────────
+vi.mock('../client', () => ({
+  reckonFetch: vi.fn(),
 }))
 
 import { postTransaction, postTransactionBatch, retryFailed } from '../write'
 import { getAccountsWithCache } from '../accountCache'
-import { createReckonClient } from '../auth'
+import { reckonFetch } from '../client'
 import type { Transaction } from '@/lib/financialData'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const mockAccounts = [
-  { id: 'acc-4-0207', code: '4-0207', name: 'Sunday Social Tennis', type: 'Income' as const, isActive: true },
-  { id: 'acc-4-4011', code: '4-4011', name: 'Drink Sales',          type: 'Income' as const, isActive: true },
+  { id: 'acc-4-0207', code: '4-0207', name: 'Sunday Social Tennis', type: 'Income', balance: 0 },
+  { id: 'acc-4-4011', code: '4-4011', name: 'Drink Sales',          type: 'Income', balance: 0 },
 ]
 
 function makeTransaction(overrides: Partial<Transaction> = {}): Transaction {
@@ -42,17 +41,11 @@ function makeTransaction(overrides: Partial<Transaction> = {}): Transaction {
 }
 
 function mockPostSuccess(reckonId = 'reckon-txn-001') {
-  vi.mocked(createReckonClient).mockResolvedValue({
-    get:  vi.fn(),
-    post: vi.fn().mockResolvedValue({ id: reckonId }),
-  })
+  vi.mocked(reckonFetch).mockResolvedValue({ id: reckonId })
 }
 
 function mockPostError(message = 'Internal Server Error') {
-  vi.mocked(createReckonClient).mockResolvedValue({
-    get:  vi.fn(),
-    post: vi.fn().mockRejectedValue(new Error(message)),
-  })
+  vi.mocked(reckonFetch).mockRejectedValue(new Error(message))
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -70,11 +63,10 @@ describe('postTransactionBatch', () => {
     const t2 = makeTransaction({ reference: 'SQ-002' })
     const t3 = makeTransaction({ reference: 'SQ-003' })
 
-    // First call fails, second and third succeed
-    vi.mocked(createReckonClient)
-      .mockResolvedValueOnce({ get: vi.fn(), post: vi.fn().mockRejectedValue(new Error('timeout')) })
-      .mockResolvedValueOnce({ get: vi.fn(), post: vi.fn().mockResolvedValue({ id: 'rk-002' }) })
-      .mockResolvedValueOnce({ get: vi.fn(), post: vi.fn().mockResolvedValue({ id: 'rk-003' }) })
+    vi.mocked(reckonFetch)
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValueOnce({ id: 'rk-002' })
+      .mockResolvedValueOnce({ id: 'rk-003' })
 
     const results = await postTransactionBatch([t1, t2, t3])
 
@@ -103,18 +95,15 @@ describe('postTransaction — source guard', () => {
     expect(result.status).toBe('skipped')
     expect(result.error).toMatch(/already in Reckon/i)
 
-    // createReckonClient should never have been called for a skipped transaction
-    expect(vi.mocked(createReckonClient)).not.toHaveBeenCalled()
+    // reckonFetch should never be called for a skipped transaction
+    expect(vi.mocked(reckonFetch)).not.toHaveBeenCalled()
   })
 
   it('skips reckon-sourced transactions within a batch', async () => {
     const reckonTxn = makeTransaction({ reference: 'RK-001', source: 'reckon' })
     const squareTxn = makeTransaction({ reference: 'SQ-001', source: 'square' })
 
-    vi.mocked(createReckonClient).mockResolvedValue({
-      get:  vi.fn(),
-      post: vi.fn().mockResolvedValue({ id: 'rk-new' }),
-    })
+    vi.mocked(reckonFetch).mockResolvedValue({ id: 'rk-new' })
 
     const results = await postTransactionBatch([reckonTxn, squareTxn])
 
@@ -159,11 +148,9 @@ describe('postTransaction — error propagation', () => {
 
 describe('postTransaction — split transactions', () => {
   it('posts one Reckon transaction per split', async () => {
-    const postFn = vi.fn()
+    vi.mocked(reckonFetch)
       .mockResolvedValueOnce({ id: 'rk-split-1' })
       .mockResolvedValueOnce({ id: 'rk-split-2' })
-
-    vi.mocked(createReckonClient).mockResolvedValue({ get: vi.fn(), post: postFn })
 
     const t = makeTransaction({
       isSplit: true,
@@ -176,11 +163,13 @@ describe('postTransaction — split transactions', () => {
     const result = await postTransaction(t)
 
     expect(result.status).toBe('success')
-    expect(postFn).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(reckonFetch)).toHaveBeenCalledTimes(2)
 
     // First split uses suffix -1, second uses -2
-    expect(postFn.mock.calls[0][1]).toMatchObject({ reference: expect.stringContaining('-1') })
-    expect(postFn.mock.calls[1][1]).toMatchObject({ reference: expect.stringContaining('-2') })
+    const [, opts1] = vi.mocked(reckonFetch).mock.calls[0]
+    const [, opts2] = vi.mocked(reckonFetch).mock.calls[1]
+    expect(JSON.parse((opts1 as RequestInit).body as string).reference).toContain('-1')
+    expect(JSON.parse((opts2 as RequestInit).body as string).reference).toContain('-2')
     expect(result.reckonId).toBe('rk-split-1,rk-split-2')
   })
 })
@@ -201,7 +190,7 @@ describe('postTransaction — account resolution', () => {
 
   it('includes the missing cost centre code in the error', async () => {
     vi.mocked(getAccountsWithCache).mockResolvedValue([
-      { id: 'acc-4-0207', code: '4-0207', name: 'Sunday Social', type: 'Income' as const, isActive: true },
+      { id: 'acc-4-0207', code: '4-0207', name: 'Sunday Social', type: 'Income', balance: 0 },
     ])
 
     const t      = makeTransaction({ accountCode: '4-0101' }) // not in mock accounts
